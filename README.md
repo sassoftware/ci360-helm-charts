@@ -2,8 +2,6 @@
 
 This repository provides Helm charts for deploying SAS Marketing AI and Marketing Decisioning solutions.
 
----
-
 ## Table of Contents
 
 - [Marketing AI](#marketing-ai)
@@ -12,8 +10,6 @@ This repository provides Helm charts for deploying SAS Marketing AI and Marketin
 - [Samples and Tools](#samples-and-tools)
 - [Support](#support)
 - [Security](#security)
-
----
 
 ## Marketing AI
 
@@ -27,8 +23,6 @@ Brief overview of the Marketing AI chart, its purpose, and key features.
   helm show readme marketing-ai/marketing-ai-x.y.z.tgz
   ```
 
----
-
 ## Marketing Decisioning
 
 Brief overview of the Marketing Decisioning chart, its purpose, and key features.
@@ -40,8 +34,6 @@ Brief overview of the Marketing Decisioning chart, its purpose, and key features
   ```
   helm show readme marketing-decisioning/marketing-decisioning-x.y.z.tgz
   ```
-
----
 
 ## Installation
 
@@ -56,15 +48,10 @@ Brief overview of the Marketing Decisioning chart, its purpose, and key features
    helm install marketing-ai/marketing-ai-0.0.43.tgz
    helm install marketing-decisioning/marketing-decisioning-0.0.27.tgz
    ```
-
----
-
 ## Samples and Tools
 
 - See the `samples/` directory for example values files for each cloud.
 - See the `tools/` directory for pre- and post-install scripts.
-
----
 
 ## Support
 
@@ -76,7 +63,9 @@ For information on reporting security vulnerabilities, see [SECURITY.md](SECURIT
 
 ## License
 
-> This project is licensed under the [Apache 2.0 License](LICENSE).
+This project is licensed under the [Apache 2.0 License](LICENSE).
+
+Using this project requires [Helm](https://helm.sh/), which is licensed with the [Apache 2.0 License](https://helm.sh/).
 
 ## Additional Resources
 
