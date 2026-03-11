@@ -2,8 +2,6 @@
 
 This repository provides Helm charts for deploying SAS Marketing AI and Marketing Decisioning solutions.
 
----
-
 ## Table of Contents
 
 - [Marketing AI](#marketing-ai)
@@ -11,8 +9,6 @@ This repository provides Helm charts for deploying SAS Marketing AI and Marketin
 - [Installation](#installation)
 - [Samples and Tools](#samples-and-tools)
 - [Support](#support)
-
----
 
 ## Marketing AI
 
@@ -26,8 +22,6 @@ Brief overview of the Marketing AI chart, its purpose, and key features.
   helm show readme marketing-ai-service
   ```
 
----
-
 ## Marketing Decisioning
 
 Brief overview of the Marketing Decisioning chart, its purpose, and key features.
@@ -39,8 +33,6 @@ Brief overview of the Marketing Decisioning chart, its purpose, and key features
   ```
   helm show readme marketing-decision-service
   ```
-
----
 
 ## Installation
 
@@ -56,14 +48,10 @@ Brief overview of the Marketing Decisioning chart, its purpose, and key features
    helm install my-decision-release ci360/marketing-decision-service
    ```
 
----
-
 ## Samples and Tools
 
 - See the `samples/` directory for example values files for each cloud.
 - See the `tools/` directory for pre- and post-install scripts.
-
----
 
 ## Support
 
