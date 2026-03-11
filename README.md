@@ -65,7 +65,7 @@ For information on reporting security vulnerabilities, see [SECURITY.md](SECURIT
 
 This project is licensed under the [Apache 2.0 License](LICENSE).
 
-Using this project requires [Helm](https://helm.sh/), which is licensed with the [Apache 2.0 License](https://helm.sh/).
+Using this project requires [Helm](https://helm.sh/), which is licensed with the [Apache 2.0 License]([https://helm.sh/](https://github.com/helm/helm/blob/main/LICENSE)).
 
 ## Additional Resources
 
