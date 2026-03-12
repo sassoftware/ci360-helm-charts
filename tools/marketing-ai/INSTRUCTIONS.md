@@ -17,9 +17,7 @@ Perhaps include a generic or cloud-specific pre-requisite section or point to to
 Script for validating pre-requisites are created correctly. 
 
 ## Steps for installing Umbrella chart 'local-agent'
-<!--
-This section provides instructions to list all available Helm charts, select a desired chart, and install it:
--->
+This section provides instructions to list all available Helm charts, select a desired chart, and install it.
 
 ### 1. Add ci-360 as a helm repo
 ```sh
@@ -121,93 +119,14 @@ Follow these steps to configure Airflow for the `local-agent`:
        ```
    - Click **Save**.
 
----
-
-## Overview
-<!--
-Include a brief project description, written from the perspective of the value your project provides users.
-Be sure to define terms, and don't expect the user to know terms that are internal to SAS.
-A good overview is clear, short, and to the point.
--->
-
-### What's New
-<!--
-If applicable to your project, list new features you want users to be aware of.
-This section might supplement the Changelog file from the repository and only highlight important changes.
--->
-
-### Prerequisites
-<!--
-Provide guidelines on any prerequisites that may be useful in configuring the user's environment.
-Prerequisites typically take the form of a list of required software that must be available.
-Each piece of software might require its own setup steps.
-Use lists and subtopics as appropriate.
--->
-
-## Installation
-<!--
-Provide step-by-step instructions for installing your software project.
-Use subtopics and screenshots as appropriate.
--->
-
-### Getting Started
-<!--
-Provide users with initial steps for getting started using your project after they have installed it.
-This is a good place to include screenshots, animated GIFs, or short example videos.
--->
-
-### Running
-<!--
-Provide users with steps for running your project after they have installed it.
-This is a good place to include screenshots, [asciinema](https://asciinema.org/) recordings, or short usage videos.
--->
-
-### Examples
-<!--
-Provide additional examples of using the software, or point to further documentation. 
-Make learning and using your project as easy as possible!
--->
-
-### Troubleshooting
-<!--
-Provide workarounds and solutions to known problems.
-Organize troubleshooting information using subtopics, as appropriate.
--->
-
 ## Contributing
-<!--
-Specify whether your project accepts contributions.
-Language you use in this section should mirror the language in your [CONTRIBUTING.md](CONTRIBUTING.md) file.
-Use the default text below if you accept contributions.
-If you do not accept contributions, note that here.
--->
-
-<!-- Use this text if your project is not accepting contributions.-->
 Maintainers are not currently accepting patches and contributions to this project.
 
-<!--Use this text if your project is accepting contributions.-->
-Maintainers are accepting patches and contributions to this project.
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details about submitting contributions to this project.
-
 ## License
-<!--
-Use the default text already in place below.
-Do not alter the text without prior approval from SAS Legal and the Open Source Program Office.
--->
 
-This project is licensed under the Apache 2.0 License.
+This project is licensed under the [Apache 2.0 License](https://github.com/helm/helm/blob/main/LICENSE).
 
 ## Additional Resources
-<!--
-Include any additional materials users may need or find useful when using your software. Additional resources might include:
-
-* Documentation links
-* SAS Global Forum papers
-* Blog posts
-* SAS Communities
-* Other SAS Documentation (Tech Support, Education)
--->
-
 - [Helm Documentation](https://helm.sh/docs/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [Airflow Documentation](https://airflow.apache.org/docs/)
