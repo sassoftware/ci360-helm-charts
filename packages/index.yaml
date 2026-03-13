@@ -2,8 +2,8 @@ apiVersion: v1
 entries:
   marketing-ai:
   - apiVersion: v2
-    appVersion: 0.0.44
-    created: "2026-03-13T11:54:08.1194941+05:30"
+    appVersion: 0.0.43
+    created: "2026-03-13T14:53:35.4852216+05:30"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -18,10 +18,10 @@ entries:
       repository: file://../charts/service
       version: 0.0.43
     description: Umbrella chart for Postgres, Airflow, Orchestrator, and other components
-    digest: 2cce7c19ca0a503694651c892c935113fbf624b76686ca28a7e6f93bf68aa1dd
+    digest: 41e485275d917b19f97a6f6bd46b8c3259d579b712e61ed326e812bd8e734317
     name: marketing-ai
     type: application
     urls:
-    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/marketing-ai-0.0.44.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai-0.0.44.tgz
     version: 0.0.44
-generated: "2026-03-13T11:54:08.0625295+05:30"
+generated: "2026-03-13T14:53:35.4139671+05:30"
