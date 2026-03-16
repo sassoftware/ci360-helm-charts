@@ -35,6 +35,6 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-      - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
+      - marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.8.0 
 generated: "2026-03-13T15:32:28.9414235+05:30"
