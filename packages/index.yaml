@@ -25,7 +25,18 @@ entries:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/marketing-ai-0.0.44.tgz
     version: 0.0.44
 
-  sas-marketing-decisioning:            
+  sas-marketing-decisioning:
+  - apiVersion: v2
+    appVersion: 0.10.0
+    created: "2026-03-17T07:52:07.136003927Z"
+    dependencies: []
+    description: A Helm chart for native components of CI360 Decisioning
+    digest: d615e0f7bc811fde4db3b7373a69a8d02dbff4f4266a4ef701fe75306e869315
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - marketing-decisioning/sas-marketing-decisioning-0.10.0.tgz
+    version: 0.10.0            
   - apiVersion: v2
     appVersion: "0.9.0"            
     created: "2026-03-16T00:00:00.000000000+05:30"
