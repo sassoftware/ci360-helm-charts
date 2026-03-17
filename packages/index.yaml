@@ -47,5 +47,5 @@ entries:
     type: application
     urls:
       - marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
-    version: 0.8.0 
+    version: 0.9.0 
 generated: "2026-03-13T15:32:28.9414235+05:30"
