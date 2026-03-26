@@ -9,53 +9,95 @@ This repository provides Helm charts for deploying SAS Marketing AI and Marketin
 - [Installation](#installation)
 - [Samples and Tools](#samples-and-tools)
 - [Support](#support)
-- [Security](#security)
 
 ## Marketing AI
 
-Brief overview of the Marketing AI chart, its purpose, and key features.
+CI360 Marketing Analytic Solution is a new SAS offering for providing marketing organizations with purpose-built machine learning pipelines or recipes. The solution is aimed to enable the marketers to easily run these analytics to satisfy marketing use cases (e.g. churn, next best action, etc.) wherever their data lives without the need for any data science skills. 
 
-- Chart name: `marketing-ai`
-- Latest version: `x.y.z`
-- [Installation instructions](#installation)
-- For chart-specific details, run:
-  ```
-  helm show readme marketing-ai/marketing-ai-x.y.z.tgz
-  ```
+Marketing Analytics is one of the solutions contributing SAS' vision to leverage and deliver analytic models as software products.
+
+### Purpose
+The purpose of this helm chart is to provide Marketing AI components to be installed on customer's end.
+
+### Key Features
+- Apache Airflow
+- Marketing AI Proxy
+- Marketing AI Orchestrator componenets
+
+[Installation instructions](#installation)
 
 ## Marketing Decisioning
 
 Brief overview of the Marketing Decisioning chart, its purpose, and key features.
 
-- Chart name: `marketing-decisioning`
+- Chart name: `marketing-decision-service`
 - Latest version: `x.y.z`
 - [Installation instructions](#installation)
 - For chart-specific details, run:
   ```
-  helm show readme marketing-decisioning/marketing-decisioning-x.y.z.tgz
+  helm show readme marketing-decision-service
   ```
 
 ## Installation
 
-1. Add the Helm repository:
+### 1. Add the Helm repository:
    ```
-   helm repo add ci360-public-repo https://sassoftware.github.io/ci360-helm-charts
+   helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
    helm repo update
    ```
 
-2. Install a chart:
+### 2. List the charts and versions:
    ```
-   helm install marketing-ai/marketing-ai-0.0.43.tgz
-   helm install marketing-decisioning/marketing-decisioning-0.0.27.tgz
+  helm search repo ci360-helm-charts --versions
    ```
+
+
+### 3. See package contents for a version:
+
+   ```
+  helm show readme ci360-helm-charts/marketing-ai --version 0.0.44
+  helm show values ci360-helm-charts/marketing-ai --version 0.0.44
+  helm show chart ci360-helm-charts/marketing-ai --version 0.0.44
+   ```
+
+### 4. Install a Chart
+
+#### a. Get latest values.yaml
+   ```
+  helm show values ci360-helm-charts/marketing-ai --version 0.0.44 > my-values.yaml
+   ```
+
+#### b. Create namespace
+   ```
+   kubectl create namespace <namespace>
+   ```
+
+#### c. Create k8s credentials
+
+   ```
+   kubectl create secret generic ci360-api-credentials `
+  --from-literal=tenant-id="<tenant-id>" `
+  --from-literal=secret="<secret>" `
+  --from-literal=username="<username>" `
+  --from-literal=password="<password>" `
+  --from-literal=token-url="<token-url>" `
+  --from-literal=final-url="<final-url>" `
+  -n <namespace>
+   ```
+
+#### d. Helm Install
+
+   ```
+   helm upgrade --install ci360-analytic-mai ci360-helm-charts/marketing-ai --version 0.0.44 --namespace <namespace> --create-namespace --values my-values.yaml --timeout 15m
+   ```
+
 ## Samples and Tools
 
-- See the `samples/` directory for example values files for each cloud.
 - See the `tools/` directory for pre- and post-install scripts.
 
 ## Support
 
-For issues or questions, please contact [support@example.com](mailto:support@example.com).
+For issues or questions, see [SUPPORT.md](SUPPORT.md).
 
 ## Security
 
