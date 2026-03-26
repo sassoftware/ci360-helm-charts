@@ -1,0 +1,81 @@
+# =======================
+# AWS-specific overrides
+# =======================
+# ECR image configuration for AWS
+_serviceRole: &serviceRole "arn:aws:iam::952478859445:role/sanasa-local-agent"
+_storageClassName: &storageClassName "gp2"
+_s3BucketName: &s3BucketName "ci-360-data-dev-us-east-1"
+_remoteBaseLogFolder: &remoteBaseLogFolder "s3://ci-360-data-dev-us-east-1/mai/logs/ci360-master-us-east-1"
+_ecrJobImage: &ecrJobImage "python:3.9-alpine"
+_k8sAuthSecretName: &k8s_auth_secret_name "ci360-api-credentials"
+_dagsStorageClassName: &dagsStorageClassName "efs-sc"
+
+# =========================
+# =========================
+
+global:
+  ExternalGatewayHost: "extapigwservice-dev.cidev.sas.us"
+  storagePrefix: s3
+  k8s_auth_secret_name: *k8s_auth_secret_name
+  ecr_job_image: *ecrJobImage
+  storageBucket: *s3BucketName
+
+airflow:
+  extraPipPackages:
+    - "apache-airflow[otel]"
+  env:
+    - name: AIRFLOW_CONN_AWS_DEFAULT
+      value: "aws://"
+    - name: OTEL_SERVICE_NAME
+      value: "airflow_logs"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://local-agent-otel:4318/v1/logs"
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: "http/protobuf"
+    - name: OTEL_LOGS_EXPORTER
+      value: "otlp"
+    - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+      value: "true"
+    - name: OTEL_PYTHON_LOG_CORRELATION
+      value: "true"
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "service.name=airflow,service.version=2.0,deployment.environment=dev"
+  
+  config:
+    logging:
+      remote_log_conn_id: "aws_default"
+      remote_base_log_folder: *remoteBaseLogFolder
+  
+  apiServer:
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: *serviceRole
+
+  workers:
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: *serviceRole
+    persistence:
+      storageClassName: *storageClassName
+
+  triggerer:
+    persistence:
+      storageClassName: *storageClassName
+
+  redis:
+    persistence:
+      storageClassName: *storageClassName
+
+postgresql-ha:
+  persistence:
+    storageClass: *storageClassName
+
+ci360-satellite:
+  dags:
+    persistence:
+      storageClassName: *dagsStorageClassName
+
+
+helmtestjob:
+  image:
+    tag: "lic_mai.mai-helm-tests"
