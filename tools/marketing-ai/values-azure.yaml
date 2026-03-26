@@ -1,0 +1,133 @@
+# =========================
+# Azure-specific overrides, to be changed by users as needed.
+# =========================
+
+# Only environment-specific configuration values - all ECR paths computed from ExternalGatewayHost
+_storageClassName : &storageClassName "managed-csi"
+_dagsStorageClassName: &dagsStorageClassName "azurefile-csi"
+_agentpool: &agentpool "agentpool"
+_workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
+_connectionString: &azureConnectionString "<input-azure-storage-connection-string-here>"
+_pythonImage: &pythonImage "python:3.9-alpine"
+# =========================
+# =========================
+
+global:
+  ExternalGatewayHost: "extapigwservice-demo.cidemo.sas.com"
+  storagePrefix: azure
+  storageBucket: "mai"
+  k8s_auth_secret_name: ci360-api-credentials
+  azureStorage:
+    connectionString: *azureConnectionString
+  # ecr_job_image is for utility jobs (not application containers)
+  ecr_job_image: *pythonImage
+airflow:
+  airflowPodAnnotations:
+    azure.workload.identity/use: "true"
+  
+  labels:
+    app.kubernetes.io/managed-by: "Helm"
+    azure.workload.identity/use: "true"
+  
+  nodeSelector:
+    agentpool: *agentpool
+  
+  config:
+    logging:
+      remote_logging: "True"
+    webserver:
+      enable_proxy_fix: "True"
+  
+  # No image configuration needed - will be computed from global.ExternalGatewayHost
+  
+  apiServer:
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: *workloadIdentityClientId
+
+  workers:
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: *workloadIdentityClientId
+    persistence:
+      storageClassName: *storageClassName
+  
+  triggerer:
+    persistence:
+      storageClassName: *storageClassName
+
+  redis:
+    persistence:
+      storageClassName: *storageClassName
+
+  extraEnv: |
+    - name: AIRFLOW__API__AUTH_BACKENDS
+      value: 'airflow.api.auth.backend.default'
+    - name: AIRFLOW__CORE__TEST_CONNECTION
+      value: 'Enabled'
+    - name: test_connection
+      value: 'Enabled'
+    - name: MAI_INTERNAL_STORAGE_PREFIX
+      value: "{{ .Values.global.storagePrefix }}"
+    - name: MAI_INTERNAL_STORAGE_BUCKET
+      value: "{{ .Values.global.storageBucket }}"
+    - name: AIRFLOW__CELERY__OPERATION_TIMEOUT
+      value: '20'
+    - name: AZURE_STORAGE_CONNECTION_STRING
+      value: "{{ .Values.global.azureStorage.connectionString }}"
+    - name: AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER
+      value: "wasb-airflow-logs"
+    - name: AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID
+      value: "wasb_default"
+    - name: AIRFLOW_CONN_WASB_DEFAULT
+      value: '{"conn_type": "wasb", "login": "<input-storage-account-name-here>", "password": "<input-storage-account-key-here>"}'
+
+redis:
+  auth:
+    password: "my-redis-password"
+  master:
+    nodeSelector:
+      agentpool: *agentpool
+
+postgresql-ha:
+  postgresql:
+    nodeSelector:
+      agentpool: *agentpool
+  pgpool:
+    nodeSelector:
+      agentpool: *agentpool
+  persistence:
+    storageClass: *storageClassName
+
+ci360-satellite:
+  # No image configuration needed - will be computed from global.ExternalGatewayHost
+  image:
+    tag: "lic_mai.orchestra"
+    proxy:
+      tag: "lic_mai.proxy"
+  
+  dags:
+    persistence:
+      storageClassName: *dagsStorageClassName
+  
+  maiproxy:
+    nodeSelector:
+      karpenter.sh/capacity-type: null
+      agentpool: *agentpool
+    environment:
+      MAI_INTERNAL_STORAGE_PREFIX: azure
+      MAI_INTERNAL_STORAGE_BUCKET: mai #use from global values, or use anchors.
+  
+  maiorchestra:
+    nodeSelector:
+      agentpool: *agentpool
+      karpenter.sh/capacity-type: null
+  
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: *workloadIdentityClientId
+
+# Helm test job configuration
+helmtestjob:
+  image:
+    tag: "lic_mai.mai-helm-tests"
