@@ -2,23 +2,36 @@
 # AWS-specific overrides
 # =======================
 # ECR image configuration for AWS
-_serviceRole: &serviceRole "arn:aws:iam::952478859445:role/sanasa-local-agent"
 _storageClassName: &storageClassName "gp2"
+_dagsStorageClassName: &dagsStorageClassName "efs-sc"
+_ecrJobImage: &ecrJobImage "python:3.9-alpine"
+_externalGatewayHost: &externalGatewayHost "extapigwservice-dev.cidev.sas.us"
+_k8sAuthSecretName: &k8s_auth_secret_name "ci360-api-credentials"
+_serviceRole: &serviceRole "arn:aws:iam::952478859445:role/sanasa-local-agent"
 _s3BucketName: &s3BucketName "ci-360-data-dev-us-east-1"
 _remoteBaseLogFolder: &remoteBaseLogFolder "s3://ci-360-data-dev-us-east-1/mai/logs/ci360-master-us-east-1"
-_ecrJobImage: &ecrJobImage "python:3.9-alpine"
-_k8sAuthSecretName: &k8s_auth_secret_name "ci360-api-credentials"
-_dagsStorageClassName: &dagsStorageClassName "efs-sc"
 
 # =========================
 # =========================
 
 global:
-  ExternalGatewayHost: "extapigwservice-dev.cidev.sas.us"
+  ExternalGatewayHost: *externalGatewayHost
   storagePrefix: s3
   k8s_auth_secret_name: *k8s_auth_secret_name
   ecr_job_image: *ecrJobImage
   storageBucket: *s3BucketName
+    # Fleets connection settings - automatically passed to all subcharts
+  fleets:
+    # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
+    mode: "direct"
+    # Fleets gateway hostname (used when mode = "gateway")
+    hostName: ""
+    # Tenant moniker passed in WebSocket connection URL
+    tenant: "not_set"
+    # Direct host name
+    directHost: "ci360-mai-comm-gateway.master-eks.cidev.sas.us"
+  simpleAuthSecret: airflow-simple-auth-passwords
+  simpleAuthPassword: "admin"
 
 airflow:
   extraPipPackages:
@@ -79,3 +92,21 @@ ci360-satellite:
 helmtestjob:
   image:
     tag: "lic_mai.mai-helm-tests"
+  
+# Fleet authentication settings (only used when global.fleets.mode = "gateway")
+# For customer installations: pre-create a K8s secret and reference it via existingSecret
+# For CI/CD: pass credentials via --set from pipeline secrets
+#
+# NOTE: Auth jobs are automatically created when mode = "gateway" and skipped when mode = "direct"
+#       Connection settings (mode, hostName, directHost, tenant) are in global.fleets above
+fleets:
+  # Authentication credentials
+  # Option 1 (RECOMMENDED for production): 
+  # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
+  existingSecret: ""
+  
+  # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
+  # These are ignored if existingSecret is set
+  username: "API-maaitbma-sinmaj"
+  key: "28A9B97A472646349FA398"
+  keepHook: true
