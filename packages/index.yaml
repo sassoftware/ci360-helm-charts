@@ -22,7 +22,8 @@ entries:
     name: marketing-ai
     type: application
     urls:
-    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/marketing-ai-0.0.46.tgz  
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/marketing-ai-0.0.46.tgz
+    version: 0.0.46
   - apiVersion: v2
     appVersion: 0.0.44
     created: "2026-03-25T14:22:24.8719308+05:30"
