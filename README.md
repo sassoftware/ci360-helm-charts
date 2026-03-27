@@ -20,11 +20,13 @@ Marketing Analytics is one of the solutions contributing SAS' vision to leverage
 The purpose of this helm chart is to provide Marketing AI components to be installed on customer's end.
 
 ### Key Features
-- Apache Airflow
 - Marketing AI Proxy
-- Marketing AI Orchestrator componenets
+- Marketing AI Orchestrator
+- Both Marketing AI component use Apache Airflow
 
-[Installation instructions](#installation)
+For helm repo setup, see [INSTRUCTIONS.md](tools/marketing-ai/INSTRUCTIONS.md).
+
+For detailed instructions for Marketing AI setup, see [README.md](tools/marketing-ai/README.md).
 
 ## Marketing Decisioning
 
@@ -37,6 +39,7 @@ Brief overview of the Marketing Decisioning chart, its purpose, and key features
   ```
   helm show readme marketing-decision-service
   ```
+[Installation instructions](#installation)
 
 ## Installation
 
