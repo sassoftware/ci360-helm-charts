@@ -25,13 +25,13 @@ global:
   # Fleets connection settings - automatically passed to all subcharts
   fleets:
     # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
-    mode: "direct"
+    mode: "gateway"
     # Fleets gateway hostname (used when mode = "gateway")
     hostName: ""
     # Tenant moniker passed in WebSocket connection URL
     tenant: "not_set"
     # Direct host name
-    directHost: "ci360-mai-comm-gateway.master-eks.cidev.sas.us"
+    directHost: ""
   simpleAuthSecret: airflow-simple-auth-passwords
   simpleAuthPassword: "admin"
 
@@ -152,6 +152,6 @@ fleets:
   
   # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
   # These are ignored if existingSecret is set
-  username: "API-maaitbma-sinmaj"
-  key: "28A9B97A472646349FA398"
+  username: ""
+  key: ""
   keepHook: true
