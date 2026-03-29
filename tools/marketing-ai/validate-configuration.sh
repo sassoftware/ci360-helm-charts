@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# preflight-check.sh — Pre-deployment cloud & K8s validation
+# validate-configuration.sh — Pre-deployment cloud & K8s validation
 # Reads configuration from the Helm values file automatically.
 # No Python/PyYAML required — uses yq or grep/sed fallback.
 #
 # Usage:
-#   ./preflight-check.sh --cloud aws   --values values-aws.yaml   [--namespace my-ns] [OPTIONS]
-#   ./preflight-check.sh --cloud azure --values values-azure.yaml [--namespace my-ns] [OPTIONS]
+#   ./validate-configuration.sh --cloud aws   --values values-aws.yaml   [--namespace my-ns] [OPTIONS]
+#   ./validate-configuration.sh --cloud azure --values values-azure.yaml [--namespace my-ns] [OPTIONS]
 #
 
 set -euo pipefail
@@ -38,7 +38,7 @@ Usage: $0 --cloud <aws|azure> --values <file> [OPTIONS]
 
 Required:
   --cloud       aws or azure
-  --values      Path to the Helm values YAML file
+  --values      Path to the Helm values YAML file (e.g., values-aws.yaml or values-azure.yaml)
 
 Optional:
   --namespace   K8s namespace (SA annotations, secrets)
@@ -47,9 +47,9 @@ Optional:
   --help        Show this message
 
 Examples:
-  $0 --cloud aws   --values values-aws.yaml   --namespace p-sinakm-1802
-  $0 --cloud azure --values values-azure.yaml --namespace mai-ns
-  $0 --cloud aws   --values values-aws.yaml   --skip-cloud
+  $0 --cloud aws   --values ../local-agent/values-aws.yaml   --namespace mai-ns
+  $0 --cloud azure --values ../local-agent/values-azure.yaml --namespace mai-ns
+  $0 --cloud aws   --values ../local-agent/values-aws.yaml   --skip-cloud
 EOF
 exit 0
 }
@@ -59,6 +59,9 @@ exit 0
 
 YQ_CMD=""
 YQ_VERSION=""
+
+# Associative array to store anchor name -> value mappings
+declare -A YAML_ANCHORS
 
 detect_yq() {
   if command -v yq &>/dev/null; then
@@ -77,6 +80,58 @@ detect_yq() {
   fi
 }
 
+# Parse all YAML anchors from a file and store in YAML_ANCHORS associative array
+# Handles format: _varName: &anchorName "value"
+parse_yaml_anchors() {
+  local file="$1"
+  
+  # Clear previous anchors
+  YAML_ANCHORS=()
+  
+  # Read file and extract anchor definitions
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    # Skip empty lines and comments
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    
+    # Match pattern: _something: &anchorName "value" or &anchorName value
+    # Also match: key: &anchorName "value"
+    if [[ "$line" =~ \&([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]+(.*) ]]; then
+      local anchor_name="${BASH_REMATCH[1]}"
+      local anchor_value="${BASH_REMATCH[2]}"
+      
+      # Clean up the value - remove quotes and whitespace
+      anchor_value=$(echo "$anchor_value" | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "$anchor_value")
+      
+      # Store in associative array
+      YAML_ANCHORS["$anchor_name"]="$anchor_value"
+    fi
+  done < "$file"
+}
+
+# Resolve an anchor reference (*anchorName) to its actual value
+# Usage: resolve_anchor "*s3BucketName"
+resolve_anchor() {
+  local value="$1"
+  
+  # Check if value is an anchor reference (*anchorName)
+  if [[ "$value" =~ ^\*([a-zA-Z_][a-zA-Z0-9_]*)$ ]]; then
+    local anchor_name="${BASH_REMATCH[1]}"
+    if [[ -n "${YAML_ANCHORS[$anchor_name]:-}" ]]; then
+      echo "${YAML_ANCHORS[$anchor_name]}"
+      return 0
+    fi
+  fi
+  
+  # Return original value if not an anchor reference or anchor not found
+  echo "$value"
+}
+
+# Check if a value is an unresolved anchor reference
+is_unresolved_anchor() {
+  local value="$1"
+  [[ "$value" =~ ^\*[a-zA-Z_][a-zA-Z0-9_]*$ ]]
+}
+
 # Get a single value from YAML by dot-notation path
 # Usage: yaml_get "file.yaml" "global.storageBucket"
 yaml_get() {
@@ -92,49 +147,96 @@ yaml_get() {
     result=$(yq -r ".${key_path} // empty" "$file" 2>/dev/null || echo "")
   else
     # Fallback: grep-based extraction (handles simple cases)
-    # Convert dot notation to grep pattern
+    # Convert dot notation to grep pattern - get the last key
     local key=$(echo "$key_path" | awk -F. '{print $NF}')
-    result=$(grep -E "^\s*${key}:" "$file" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '"' | tr -d "'" | xargs || echo "")
+    result=$(grep -E "^[[:space:]]*${key}:" "$file" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
   fi
 
   # Clean up the result
-  result=$(echo "$result" | tr -d '"' | tr -d "'" | xargs 2>/dev/null || echo "$result")
+  result=$(echo "$result" | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "$result")
+  
+  # Resolve anchor reference if present
+  if is_unresolved_anchor "$result"; then
+    result=$(resolve_anchor "$result")
+  fi
+  
   echo "$result"
 }
 
-# Get all unique values for a key name anywhere in the file
+# Get all unique values for a key name anywhere in the file (resolves anchors)
 # Usage: yaml_grep_all "file.yaml" "storageClassName"
 yaml_grep_all() {
   local file="$1"
   local key_name="$2"
+  local results=""
 
-  grep -E "^\s*${key_name}:" "$file" 2>/dev/null \
-    | sed 's/.*:\s*//' \
-    | tr -d '"' | tr -d "'" \
-    | xargs -n1 2>/dev/null \
-    | sort -u \
-    | grep -v "^$" \
-    || echo ""
+  while IFS= read -r line; do
+    local value=$(echo "$line" | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
+    
+    # Resolve anchor if it's a reference
+    if is_unresolved_anchor "$value"; then
+      value=$(resolve_anchor "$value")
+    fi
+    
+    [[ -n "$value" && "$value" != "null" ]] && results="${results}"$'\n'"${value}"
+  done < <(grep -E "^[[:space:]]*${key_name}:" "$file" 2>/dev/null || true)
+
+  echo "$results" | sort -u | grep -v "^$" || echo ""
 }
 
-# Extract IAM role names from role-arn patterns
+# Get YAML anchor value directly by the anchor variable name
+# Usage: yaml_get_anchor "file.yaml" "_storageClassName"
+# Handles format: _storageClassName: &storageClassName "gp2"
+yaml_get_anchor() {
+  local file="$1"
+  local anchor_var="$2"
+  
+  local result=$(grep -E "^${anchor_var}:" "$file" 2>/dev/null | head -1 | sed 's/.*&[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
+  
+  echo "$result"
+}
+
+# Extract IAM role ARNs from file
 # Usage: yaml_extract_iam_roles "file.yaml"
 yaml_extract_iam_roles() {
   local file="$1"
-  grep -oP 'arn:aws:iam::[0-9]+:role/\K[a-zA-Z0-9_+=,.@-]+' "$file" 2>/dev/null \
+  grep -oE 'arn:aws:iam::[0-9]+:role/[a-zA-Z0-9_+=,.@-]+' "$file" 2>/dev/null \
     | sort -u \
     || echo ""
 }
 
-# Extract Azure identity names from annotations
-yaml_extract_azure_identities() {
+# Extract IAM role names only (without full ARN)
+yaml_extract_iam_role_names() {
   local file="$1"
-  grep -E "(client-id|aadpodidbinding):" "$file" 2>/dev/null \
-    | sed 's/.*:\s*//' \
-    | tr -d '"' | tr -d "'" \
-    | xargs -n1 2>/dev/null \
+  grep -oE 'arn:aws:iam::[0-9]+:role/[a-zA-Z0-9_+=,.@-]+' "$file" 2>/dev/null \
+    | sed 's|.*role/||' \
     | sort -u \
-    | grep -v "^$" \
+    || echo ""
+}
+
+# Extract Azure Workload Identity client IDs
+yaml_extract_azure_workload_identity() {
+  local file="$1"
+  local results=""
+  
+  while IFS= read -r line; do
+    local value=$(echo "$line" | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
+    if is_unresolved_anchor "$value"; then
+      value=$(resolve_anchor "$value")
+    fi
+    [[ -n "$value" ]] && results="${results}"$'\n'"${value}"
+  done < <(grep -E "azure.workload.identity/client-id:" "$file" 2>/dev/null || true)
+  
+  echo "$results" | sort -u | grep -v "^$" || echo ""
+}
+
+# Extract Azure Workload Identity from anchor
+yaml_extract_azure_identity_anchor() {
+  local file="$1"
+  grep -E "^_workloadIdentityClientId:" "$file" 2>/dev/null \
+    | sed 's/.*&[a-zA-Z_]*[[:space:]]*//' \
+    | tr -d '"' | tr -d "'" | tr -d '\r' \
+    | xargs 2>/dev/null \
     || echo ""
 }
 
@@ -171,48 +273,107 @@ fi
 # Detect yq availability
 detect_yq
 
+# IMPORTANT: Parse YAML anchors FIRST before reading any values
+parse_yaml_anchors "$VALUES_FILE"
+
 # ─────────────────────────── Read values ──────────────────────
+# Global settings - yaml_get now automatically resolves anchor references
 STORAGE_BUCKET=$(yaml_get "$VALUES_FILE" "global.storageBucket")
 STORAGE_PREFIX=$(yaml_get "$VALUES_FILE" "global.storagePrefix")
-REGISTRY_URL=$(yaml_get "$VALUES_FILE" "registry.url")
-REMOTE_LOG_FOLDER=$(yaml_get "$VALUES_FILE" "airflow.config.logging.remote_base_log_folder")
+EXTERNAL_GATEWAY_HOST=$(yaml_get "$VALUES_FILE" "global.ExternalGatewayHost")
+K8S_AUTH_SECRET_NAME=$(yaml_get "$VALUES_FILE" "global.k8s_auth_secret_name")
+
+# Fleets settings
+FLEETS_MODE=$(yaml_get "$VALUES_FILE" "global.fleets.mode")
+FLEETS_HOSTNAME=$(yaml_get "$VALUES_FILE" "global.fleets.hostName")
+FLEETS_DIRECT_HOST=$(yaml_get "$VALUES_FILE" "global.fleets.directHost")
+FLEETS_TENANT=$(yaml_get "$VALUES_FILE" "global.fleets.tenant")
 EXISTING_SECRET=$(yaml_get "$VALUES_FILE" "fleets.existingSecret")
 
-# Storage classes — collect unique values
+# Storage classes — collect from anchors and direct values
+STORAGE_CLASS_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_storageClassName")
+DAGS_STORAGE_CLASS_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_dagsStorageClassName")
 STORAGE_CLASSES_RAW=$(yaml_grep_all "$VALUES_FILE" "storageClassName")
+STORAGE_CLASS_PERSISTENCE=$(yaml_grep_all "$VALUES_FILE" "storageClass")
 
-# IAM roles (AWS) or identities (Azure)
-IAM_ROLES=$(yaml_extract_iam_roles "$VALUES_FILE")
-AZURE_IDENTITIES=$(yaml_extract_azure_identities "$VALUES_FILE")
+# Combine all storage classes
+ALL_STORAGE_CLASSES=""
+[[ -n "$STORAGE_CLASS_ANCHOR" ]] && ALL_STORAGE_CLASSES="$STORAGE_CLASS_ANCHOR"
+[[ -n "$DAGS_STORAGE_CLASS_ANCHOR" ]] && ALL_STORAGE_CLASSES="${ALL_STORAGE_CLASSES}"$'\n'"${DAGS_STORAGE_CLASS_ANCHOR}"
+[[ -n "$STORAGE_CLASSES_RAW" ]] && ALL_STORAGE_CLASSES="${ALL_STORAGE_CLASSES}"$'\n'"${STORAGE_CLASSES_RAW}"
+[[ -n "$STORAGE_CLASS_PERSISTENCE" ]] && ALL_STORAGE_CLASSES="${ALL_STORAGE_CLASSES}"$'\n'"${STORAGE_CLASS_PERSISTENCE}"
+ALL_STORAGE_CLASSES=$(echo "$ALL_STORAGE_CLASSES" | sort -u | grep -v "^$" || echo "")
 
-# Azure-specific
-AZURE_STORAGE_ACCOUNT=$(yaml_get "$VALUES_FILE" "global.azure.storageAccount")
-AZURE_RESOURCE_GROUP=$(yaml_get "$VALUES_FILE" "global.azure.resourceGroup")
-
-# Read connection string from global.azureStorage.connectionString
-AZURE_CONNECTION_STRING=$(yaml_get "$VALUES_FILE" "global.azureStorage.connectionString")
-
-# Extract AccountName from connection string: AccountName=<name>;
-if [[ -n "$AZURE_CONNECTION_STRING" ]]; then
-  AZURE_STORAGE_ACCOUNT=$(echo "$AZURE_CONNECTION_STRING" | grep -oP 'AccountName=\K[^;]+' || echo "")
+# AWS-specific values
+if [[ "$CLOUD" == "aws" ]]; then
+  # IAM roles
+  IAM_ROLES=$(yaml_extract_iam_roles "$VALUES_FILE")
+  IAM_ROLE_NAMES=$(yaml_extract_iam_role_names "$VALUES_FILE")
+  SERVICE_ROLE_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_serviceRole")
+  
+  # S3 bucket - fallback to anchor if yaml_get didn't resolve
+  S3_BUCKET_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_s3BucketName")
+  [[ -z "$STORAGE_BUCKET" || "$STORAGE_BUCKET" == "null" ]] && STORAGE_BUCKET="$S3_BUCKET_ANCHOR"
+  
+  # Remote log folder
+  REMOTE_LOG_FOLDER=$(yaml_get "$VALUES_FILE" "airflow.config.logging.remote_base_log_folder")
+  [[ -z "$REMOTE_LOG_FOLDER" || "$REMOTE_LOG_FOLDER" == "null" ]] && REMOTE_LOG_FOLDER=$(yaml_get_anchor "$VALUES_FILE" "_remoteBaseLogFolder")
+  
+  # Extract S3 log bucket from remote_base_log_folder
+  S3_LOG_BUCKET=""
+  if [[ -n "$REMOTE_LOG_FOLDER" && "$REMOTE_LOG_FOLDER" == s3://* ]]; then
+    S3_LOG_BUCKET=$(echo "$REMOTE_LOG_FOLDER" | sed 's|s3://||' | cut -d'/' -f1)
+  fi
+  
+  # ECR registry URL from ExternalGatewayHost
+  EXTERNAL_GW_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_externalGatewayHost")
+  [[ -z "$EXTERNAL_GATEWAY_HOST" || "$EXTERNAL_GATEWAY_HOST" == "null" ]] && EXTERNAL_GATEWAY_HOST="$EXTERNAL_GW_ANCHOR"
 fi
 
-# Derive S3 log bucket
-S3_LOG_BUCKET=""
-if [[ -n "$REMOTE_LOG_FOLDER" && "$REMOTE_LOG_FOLDER" == s3://* ]]; then
-  S3_LOG_BUCKET=$(echo "$REMOTE_LOG_FOLDER" | sed 's|s3://||' | cut -d'/' -f1)
+# Azure-specific values
+if [[ "$CLOUD" == "azure" ]]; then
+  # Azure Storage
+  AZURE_CONNECTION_STRING=$(yaml_get "$VALUES_FILE" "global.azureStorage.connectionString")
+  [[ -z "$AZURE_CONNECTION_STRING" || "$AZURE_CONNECTION_STRING" == "null" ]] && AZURE_CONNECTION_STRING=$(yaml_get_anchor "$VALUES_FILE" "_connectionString")
+  
+  # Extract AccountName from connection string
+  AZURE_STORAGE_ACCOUNT=""
+  if [[ -n "$AZURE_CONNECTION_STRING" ]]; then
+    AZURE_STORAGE_ACCOUNT=$(echo "$AZURE_CONNECTION_STRING" | grep -oE 'AccountName=[^;]+' | sed 's/AccountName=//' || echo "")
+  fi
+  
+  # Workload Identity
+  AZURE_WORKLOAD_IDENTITY=$(yaml_extract_azure_identity_anchor "$VALUES_FILE")
+  [[ -z "$AZURE_WORKLOAD_IDENTITY" ]] && AZURE_WORKLOAD_IDENTITY=$(yaml_extract_azure_workload_identity "$VALUES_FILE" | head -1)
+  
+  # Node selector (agentpool)
+  AGENTPOOL=$(yaml_get_anchor "$VALUES_FILE" "_agentpool")
+  
+  # ExternalGatewayHost
+  EXTERNAL_GW_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_externalGatewayHost")
+  [[ -z "$EXTERNAL_GATEWAY_HOST" || "$EXTERNAL_GATEWAY_HOST" == "null" ]] && EXTERNAL_GATEWAY_HOST="$EXTERNAL_GW_ANCHOR"
 fi
 
 # ═══════════════════════════════════════════════════════════════
-log_header "MAILA VALIDATION OF CONFIGURATION  ·  ${CLOUD^^}"
-echo -e "  Cloud            : ${BOLD}${CLOUD}${NC}"
-echo -e "  Values file      : ${BOLD}${VALUES_FILE}${NC}"
-echo -e "  YAML parser      : ${BOLD}${YQ_VERSION:-grep/sed fallback}${NC}"
-echo -e "  Storage prefix   : ${BOLD}${STORAGE_PREFIX:-<empty>}${NC}"
-echo -e "  Storage bucket   : ${BOLD}${STORAGE_BUCKET:-<empty>}${NC}"
-echo -e "  Registry URL     : ${BOLD}${REGISTRY_URL:-<empty>}${NC}"
-echo -e "  Namespace        : ${BOLD}${NAMESPACE:-<not specified>}${NC}"
-echo -e "  Timestamp        : $(date)"
+log_header "MAI LOCAL AGENT - CONFIGURATION VALIDATION · ${CLOUD^^}"
+echo -e "  Cloud              : ${BOLD}${CLOUD}${NC}"
+echo -e "  Values file        : ${BOLD}${VALUES_FILE}${NC}"
+echo -e "  YAML parser        : ${BOLD}${YQ_VERSION:-grep/sed fallback}${NC}"
+echo -e "  Anchors parsed     : ${BOLD}${#YAML_ANCHORS[@]}${NC}"
+echo -e "  ExternalGatewayHost: ${BOLD}${EXTERNAL_GATEWAY_HOST:-<empty>}${NC}"
+echo -e "  Storage prefix     : ${BOLD}${STORAGE_PREFIX:-<empty>}${NC}"
+echo -e "  Storage bucket     : ${BOLD}${STORAGE_BUCKET:-<empty>}${NC}"
+echo -e "  Fleets mode        : ${BOLD}${FLEETS_MODE:-<empty>}${NC}"
+echo -e "  Namespace          : ${BOLD}${NAMESPACE:-<not specified>}${NC}"
+echo -e "  Timestamp          : $(date)"
+
+# Debug: Show parsed anchors
+if [[ ${#YAML_ANCHORS[@]} -gt 0 ]]; then
+  echo -e "\n  ${CYAN}Parsed YAML Anchors:${NC}"
+  for anchor in "${!YAML_ANCHORS[@]}"; do
+    echo -e "    ${anchor} = ${YAML_ANCHORS[$anchor]}"
+  done
+fi
 
 # ─────────────────────────── 0. Tool check ────────────────────
 log_section "0  Pre-requisite Tools"
@@ -226,7 +387,14 @@ done
 if [[ -n "$YQ_VERSION" ]]; then
   log_pass "yq installed ($YQ_VERSION version)"
 else
-  log_info "yq not found — using grep/sed fallback (limited parsing)"
+  log_info "yq not found — using grep/sed fallback with anchor resolution"
+fi
+
+if command -v helm &>/dev/null; then
+  HELM_VER=$(helm version --short 2>/dev/null | head -1)
+  log_pass "Helm installed ($HELM_VER)"
+else
+  log_fail "Helm is NOT installed"
 fi
 
 if [[ "$SKIP_CLOUD" == false ]]; then
@@ -241,45 +409,92 @@ if [[ "$SKIP_CLOUD" == false ]]; then
   fi
 fi
 
+# ─────────────────────────── 1. Required Values ───────────────
+log_section "1  Required Values Validation"
+
+# Check critical required fields
+if [[ -n "$STORAGE_BUCKET" && "$STORAGE_BUCKET" != "null" && ! "$STORAGE_BUCKET" =~ ^\* ]]; then
+  log_pass "global.storageBucket is set: ${STORAGE_BUCKET}"
+else
+  log_fail "global.storageBucket is missing, empty, or unresolved anchor"
+fi
+
+if [[ -n "$STORAGE_PREFIX" && "$STORAGE_PREFIX" != "null" ]]; then
+  log_pass "global.storagePrefix is set: ${STORAGE_PREFIX}"
+else
+  log_fail "global.storagePrefix is missing or empty"
+fi
+
+if [[ -n "$EXTERNAL_GATEWAY_HOST" && "$EXTERNAL_GATEWAY_HOST" != "null" && ! "$EXTERNAL_GATEWAY_HOST" =~ ^\* ]]; then
+  log_pass "global.ExternalGatewayHost is set: ${EXTERNAL_GATEWAY_HOST}"
+else
+  log_fail "global.ExternalGatewayHost is missing, empty, or unresolved anchor"
+fi
+
+# Fleets configuration validation
+if [[ -n "$FLEETS_MODE" ]]; then
+  if [[ "$FLEETS_MODE" == "gateway" ]]; then
+    log_pass "Fleets mode: gateway"
+    if [[ -n "$FLEETS_HOSTNAME" && "$FLEETS_HOSTNAME" != "null" ]]; then
+      log_pass "Fleets gateway hostname is set: ${FLEETS_HOSTNAME}"
+    else
+      log_fail "Fleets mode is 'gateway' but global.fleets.hostName is empty"
+    fi
+  elif [[ "$FLEETS_MODE" == "direct" ]]; then
+    log_pass "Fleets mode: direct"
+    if [[ -n "$FLEETS_DIRECT_HOST" && "$FLEETS_DIRECT_HOST" != "null" ]]; then
+      log_pass "Fleets direct host is set: ${FLEETS_DIRECT_HOST}"
+    else
+      log_fail "Fleets mode is 'direct' but global.fleets.directHost is empty"
+    fi
+  else
+    log_warn "Fleets mode '${FLEETS_MODE}' is not recognized (expected: gateway or direct)"
+  fi
+else
+  log_warn "global.fleets.mode is not set"
+fi
+
 # ═══════════════════════════════════════════════════════════════
-# 1. CLOUD-SPECIFIC CHECKS
+# 2. CLOUD-SPECIFIC CHECKS
 # ═══════════════════════════════════════════════════════════════
 if [[ "$SKIP_CLOUD" == false ]]; then
 
   # ───────────────── AWS ──────────────────
   if [[ "$CLOUD" == "aws" ]]; then
-    log_section "1  AWS Cloud Validation"
+    log_section "2  AWS Cloud Validation"
 
-    # 1a. Authentication
+    # 2a. Authentication
     if aws sts get-caller-identity &>/dev/null; then
       ACCT=$(aws sts get-caller-identity --query "Account" --output text 2>/dev/null)
-      log_pass "AWS credentials valid  (Account: $ACCT)"
+      log_pass "AWS credentials valid (Account: $ACCT)"
     else
-      log_fail "AWS credentials invalid — run 'aws configure'"
+      log_fail "AWS credentials invalid — run 'aws configure' or check IAM role"
     fi
 
-    # 1b. S3 bucket
-    if [[ -n "$STORAGE_BUCKET" ]]; then
+    # 2b. S3 bucket - only check if value is valid (not an anchor reference)
+    if [[ -n "$STORAGE_BUCKET" && ! "$STORAGE_BUCKET" =~ ^\* ]]; then
       if aws s3 ls "s3://${STORAGE_BUCKET}" &>/dev/null; then
         log_pass "S3 bucket accessible: s3://${STORAGE_BUCKET}"
       else
         log_fail "S3 bucket NOT accessible: s3://${STORAGE_BUCKET}"
       fi
     else
-      log_fail "global.storageBucket is empty — skipping S3 check"
+      log_warn "global.storageBucket is empty or unresolved — skipping S3 check"
     fi
 
-    # 1c. S3 remote log bucket
-    if [[ -n "$S3_LOG_BUCKET" && "$S3_LOG_BUCKET" != "$STORAGE_BUCKET" ]]; then
+    # 2c. S3 remote log bucket (if different from main bucket)
+    if [[ -n "$S3_LOG_BUCKET" && ! "$S3_LOG_BUCKET" =~ ^\* && "$S3_LOG_BUCKET" != "$STORAGE_BUCKET" ]]; then
       if aws s3 ls "s3://${S3_LOG_BUCKET}" &>/dev/null; then
         log_pass "S3 remote log bucket accessible: s3://${S3_LOG_BUCKET}"
       else
         log_fail "S3 remote log bucket NOT accessible: s3://${S3_LOG_BUCKET}"
       fi
+    elif [[ -n "$S3_LOG_BUCKET" && "$S3_LOG_BUCKET" == "$STORAGE_BUCKET" ]]; then
+      log_info "Remote log bucket same as storage bucket: ${S3_LOG_BUCKET}"
     fi
 
-    # 1d. IAM roles
-    if [[ -n "$IAM_ROLES" ]]; then
+    # 2d. IAM roles
+    if [[ -n "$IAM_ROLE_NAMES" ]]; then
       while IFS= read -r role; do
         [[ -z "$role" ]] && continue
         if aws iam get-role --role-name "$role" &>/dev/null; then
@@ -287,160 +502,215 @@ if [[ "$SKIP_CLOUD" == false ]]; then
         else
           log_fail "IAM role NOT found: ${role}"
         fi
-      done <<< "$IAM_ROLES"
+      done <<< "$IAM_ROLE_NAMES"
     else
-      log_fail "No IAM role ARNs found in values"
+      log_warn "No IAM role ARNs found in values file"
     fi
 
-    # 1e. ECR registry
-    if [[ -n "$REGISTRY_URL" ]]; then
-      ECR_REGION=$(echo "$REGISTRY_URL" | grep -oP '\.ecr\.\K[a-z0-9-]+' || echo "")
+    # 2e. ECR registry access
+    if [[ -n "$EXTERNAL_GATEWAY_HOST" && ! "$EXTERNAL_GATEWAY_HOST" =~ ^\* ]]; then
+      # Map ExternalGatewayHost to ECR region
+      case "$EXTERNAL_GATEWAY_HOST" in
+        *dev.cidev.sas.us*|*stage.cistage.sas.com*|*prod.ci360.sas.com*|*training.ci360.sas.com*|*demo.cidemo.sas.com*)
+          ECR_REGION="us-east-1"
+          ;;
+        *eu-prod.ci360.sas.com*)
+          ECR_REGION="eu-west-1"
+          ;;
+        *apn-prod.ci360.sas.com*)
+          ECR_REGION="ap-northeast-1"
+          ;;
+        *syd-prod.ci360.sas.com*)
+          ECR_REGION="ap-southeast-2"
+          ;;
+        *mum-prod.ci360.sas.com*)
+          ECR_REGION="ap-south-1"
+          ;;
+        *)
+          ECR_REGION=""
+          ;;
+      esac
+      
       if [[ -n "$ECR_REGION" ]]; then
         if aws ecr describe-repositories --region "$ECR_REGION" --max-items 1 &>/dev/null; then
-          log_pass "ECR registry accessible: ${REGISTRY_URL}"
+          log_pass "ECR registry accessible in region: ${ECR_REGION}"
         else
-          log_fail "ECR registry NOT accessible: ${REGISTRY_URL}"
+          log_fail "ECR registry NOT accessible in region: ${ECR_REGION}"
         fi
+      else
+        log_warn "Could not determine ECR region from ExternalGatewayHost"
       fi
     fi
   fi
 
   # ───────────────── Azure ────────────────
   if [[ "$CLOUD" == "azure" ]]; then
-    log_section "1  Azure Cloud Validation"
+    log_section "2  Azure Cloud Validation"
 
-    # 1a. Authentication
+    # 2a. Authentication
     if az account show &>/dev/null; then
       SUB=$(az account show --query "name" --output tsv 2>/dev/null)
-      log_pass "Azure login valid  (Subscription: $SUB)"
+      log_pass "Azure login valid (Subscription: $SUB)"
     else
       log_fail "Azure login invalid — run 'az login'"
     fi
 
-    # 1b. Storage account
-    if [[ -n "$AZURE_STORAGE_ACCOUNT" ]]; then
-      if az storage account show --name "$AZURE_STORAGE_ACCOUNT" \
-           ${AZURE_RESOURCE_GROUP:+--resource-group "$AZURE_RESOURCE_GROUP"} &>/dev/null; then
+    # 2b. Storage account
+    if [[ -n "$AZURE_STORAGE_ACCOUNT" && ! "$AZURE_STORAGE_ACCOUNT" =~ ^\* ]]; then
+      if az storage account show --name "$AZURE_STORAGE_ACCOUNT" &>/dev/null 2>&1; then
         log_pass "Storage account exists: $AZURE_STORAGE_ACCOUNT"
 
-        # 1c. Blob container
-        if [[ -n "$STORAGE_BUCKET" ]]; then
+        # 2c. Blob container
+        if [[ -n "$STORAGE_BUCKET" && -n "$AZURE_CONNECTION_STRING" && ! "$STORAGE_BUCKET" =~ ^\* ]]; then
           if az storage container show --name "$STORAGE_BUCKET" \
-              --connection-string "$AZURE_CONNECTION_STRING" &>/dev/null; then
+              --connection-string "$AZURE_CONNECTION_STRING" &>/dev/null 2>&1; then
             log_pass "Blob container accessible: $STORAGE_BUCKET"
           else
             log_fail "Blob container NOT accessible: $STORAGE_BUCKET"
           fi
+        elif [[ -n "$STORAGE_BUCKET" ]]; then
+          log_warn "Cannot verify blob container — connection string not found"
         fi
       else
         log_fail "Storage account NOT found: $AZURE_STORAGE_ACCOUNT"
       fi
     else
-      log_fail "global.azure.storageAccount not set"
+      log_fail "Azure storage account not found in values (check global.azureStorage.connectionString)"
     fi
 
-    # 1d. Identities
-    if [[ -n "$AZURE_IDENTITIES" ]]; then
-      while IFS= read -r identity; do
-        [[ -z "$identity" ]] && continue
-        if az identity list --query "[?clientId=='$identity']" \
-        # if az identity show --name "$identity" \
-             ${AZURE_RESOURCE_GROUP:+--resource-group "$AZURE_RESOURCE_GROUP"} &>/dev/null; then
-          log_pass "Managed Identity exists: ${identity}"
-        else
-          log_fail "Identity NOT found: ${identity}"
-        fi
-      done <<< "$AZURE_IDENTITIES"
-    fi
-
-    # 1e. ACR registry
-    if [[ -n "$REGISTRY_URL" && "$REGISTRY_URL" == *".azurecr.io"* ]]; then
-      ACR_NAME=$(echo "$REGISTRY_URL" | sed 's/.azurecr.io//')
-      if az acr show --name "$ACR_NAME" &>/dev/null 2>&1; then
-        log_pass "ACR registry exists: $ACR_NAME"
+    # 2d. Workload Identity
+    if [[ -n "$AZURE_WORKLOAD_IDENTITY" && ! "$AZURE_WORKLOAD_IDENTITY" =~ ^\* ]]; then
+      log_info "Workload Identity Client ID: ${AZURE_WORKLOAD_IDENTITY}"
+      # Validate the format
+      if [[ "$AZURE_WORKLOAD_IDENTITY" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+        log_pass "Workload Identity Client ID format is valid"
       else
-        log_fail "ACR registry NOT found: $ACR_NAME"
+        log_warn "Workload Identity Client ID format may be invalid"
       fi
+    else
+      log_warn "No Workload Identity Client ID found in values"
+    fi
+
+    # 2e. Node pool (agentpool)
+    if [[ -n "$AGENTPOOL" && ! "$AGENTPOOL" =~ ^\* ]]; then
+      log_info "Node selector agentpool: ${AGENTPOOL}"
     fi
   fi
 
 else
-  log_section "1  Cloud Validation"
+  log_section "2  Cloud Validation"
   log_info "Skipped (--skip-cloud)"
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# 2. KUBERNETES PRE-CHECKS
+# 3. KUBERNETES PRE-CHECKS
 # ═══════════════════════════════════════════════════════════════
 if [[ "$SKIP_K8S" == false ]]; then
-  log_section "2  Kubernetes Cluster Connectivity"
+  log_section "3  Kubernetes Cluster Connectivity"
 
-  # 2a. Cluster reachable
+  # 3a. Cluster reachable
   if kubectl cluster-info &>/dev/null; then
-    CLUSTER_EP=$(kubectl cluster-info 2>/dev/null | head -1 | grep -oP 'https?://[^\s]+' || echo "connected")
+    CLUSTER_EP=$(kubectl cluster-info 2>/dev/null | head -1 | grep -oE 'https?://[^\s]+' || echo "connected")
     log_pass "Cluster reachable: $CLUSTER_EP"
   else
     log_fail "Cannot connect to Kubernetes cluster"
   fi
 
-  # 2b. Node readiness
+  # 3b. Node readiness
   READY=$(kubectl get nodes --no-headers 2>/dev/null | grep -c " Ready" || echo 0)
   TOTAL=$(kubectl get nodes --no-headers 2>/dev/null | wc -l || echo 0)
   [[ "$READY" -gt 0 ]] && log_pass "Nodes ready: ${READY}/${TOTAL}" || log_fail "No nodes Ready"
 
-  # ──────── 2c. Storage classes ────────
-  log_section "3  Storage Class Verification"
+  # ──────── 3c. Storage classes ────────
+  log_section "4  Storage Class Verification"
 
-  if [[ -n "$STORAGE_CLASSES_RAW" ]]; then
+  if [[ -n "$ALL_STORAGE_CLASSES" ]]; then
     while IFS= read -r sc; do
-      sc=$(echo "$sc" | xargs)
+      # Remove whitespace and carriage returns
+      sc=$(echo "$sc" | tr -d '\r' | xargs)
       [[ -z "$sc" ]] && continue
+      # Skip unresolved anchor references
+      [[ "$sc" =~ ^\* ]] && continue
       if kubectl get storageclass "$sc" &>/dev/null; then
         PROVISIONER=$(kubectl get storageclass "$sc" -o jsonpath='{.provisioner}' 2>/dev/null)
         log_pass "StorageClass '${sc}' exists (provisioner=${PROVISIONER})"
       else
-        log_fail "StorageClass '${sc}' NOT found"
+        log_fail "StorageClass '${sc}' NOT found in cluster"
       fi
-    done <<< "$STORAGE_CLASSES_RAW"
+    done <<< "$ALL_STORAGE_CLASSES"
   else
-    log_fail "No storageClassName found in values"
+    log_warn "No storageClassName found in values file"
   fi
 
-  # ──────── 2d. Namespace & SA ────────
+  # ──────── 3d. Namespace & SA ────────
   if [[ -n "$NAMESPACE" ]]; then
-    log_section "4  Namespace & Service Account Checks"
+    log_section "5  Namespace & Service Account Checks"
 
     if kubectl get namespace "$NAMESPACE" &>/dev/null; then
       log_pass "Namespace '${NAMESPACE}' exists"
 
+      # Check for ServiceAccounts with cloud-specific annotations
       ANNOTATION_KEY=$([[ "$CLOUD" == "aws" ]] && echo "eks.amazonaws.com/role-arn" || echo "azure.workload.identity/client-id")
       SA_MATCHES=$(kubectl get serviceaccount -n "$NAMESPACE" -o yaml 2>/dev/null | grep "$ANNOTATION_KEY" || true)
 
       if [[ -n "$SA_MATCHES" ]]; then
         MATCH_COUNT=$(echo "$SA_MATCHES" | wc -l)
-        log_pass "Found ${MATCH_COUNT} SA(s) with '${ANNOTATION_KEY}'"
+        log_pass "Found ${MATCH_COUNT} SA(s) with '${ANNOTATION_KEY}' annotation"
       else
-        log_fail "No SAs with '${ANNOTATION_KEY}' annotation"
+        log_info "No SAs with '${ANNOTATION_KEY}' annotation yet (will be created by Helm)"
       fi
 
-      # Required secrets
-      REQUIRED_SECRETS=("$EXISTING_SECRET")
-      [[ -n "$EXISTING_SECRET" ]] && REQUIRED_SECRETS+=("$EXISTING_SECRET")
-
-      for secret_name in "${REQUIRED_SECRETS[@]}"; do
-        if kubectl get secret "$secret_name" -n "$NAMESPACE" &>/dev/null; then
-          log_pass "Secret '${secret_name}' exists"
+      # Check for required secrets
+      if [[ -n "$K8S_AUTH_SECRET_NAME" && ! "$K8S_AUTH_SECRET_NAME" =~ ^\* ]]; then
+        if kubectl get secret "$K8S_AUTH_SECRET_NAME" -n "$NAMESPACE" &>/dev/null; then
+          log_pass "Secret '${K8S_AUTH_SECRET_NAME}' exists"
         else
-          log_fail "Secret '${secret_name}' not found"
+          log_warn "Secret '${K8S_AUTH_SECRET_NAME}' not found — create before deployment or use fleets.existingSecret"
         fi
-      done
+      fi
+      
+      # Check fleets.existingSecret ONLY when mode is "gateway"
+      if [[ "$FLEETS_MODE" == "gateway" ]]; then
+        if [[ -n "$EXISTING_SECRET" && "$EXISTING_SECRET" != "null" && "$EXISTING_SECRET" != '""' && ! "$EXISTING_SECRET" =~ ^\* ]]; then
+          if kubectl get secret "$EXISTING_SECRET" -n "$NAMESPACE" &>/dev/null; then
+            log_pass "Fleets secret '${EXISTING_SECRET}' exists"
+          else
+            log_fail "Fleets secret '${EXISTING_SECRET}' specified but not found in namespace '${NAMESPACE}'"
+          fi
+        else
+          log_info "No fleets.existingSecret specified — credentials will use inline values or be created"
+        fi
+      elif [[ "$FLEETS_MODE" == "direct" ]]; then
+        log_info "Fleets mode is 'direct' — skipping fleets.existingSecret check"
+      fi
+
+      # Check for resource quotas
+      log_section "6  Resource Quota Check"
+      QUOTA_COUNT=$(kubectl get resourcequota -n "$NAMESPACE" --no-headers 2>/dev/null | wc -l || echo 0)
+      if [[ "$QUOTA_COUNT" -gt 0 ]]; then
+        log_info "Namespace has ${QUOTA_COUNT} ResourceQuota(s) — verify sufficient capacity:"
+        kubectl get resourcequota -n "$NAMESPACE" --no-headers 2>/dev/null | while read -r line; do
+          echo "         $line"
+        done
+      else
+        log_pass "No ResourceQuota restrictions in namespace"
+      fi
+
+      # Check for existing PVCs that might conflict
+      PVC_COUNT=$(kubectl get pvc -n "$NAMESPACE" --no-headers 2>/dev/null | wc -l || echo 0)
+      if [[ "$PVC_COUNT" -gt 0 ]]; then
+        log_info "Namespace has ${PVC_COUNT} existing PVC(s)"
+      fi
+
     else
-      log_info "Namespace '${NAMESPACE}' does not exist yet"
+      log_info "Namespace '${NAMESPACE}' does not exist yet — will be created during deployment"
     fi
+  else
+    log_info "No --namespace specified — skipping namespace checks"
   fi
 
 else
-  log_section "2  Kubernetes Pre-Checks"
+  log_section "3  Kubernetes Pre-Checks"
   log_info "Skipped (--skip-k8s)"
 fi
 
@@ -456,14 +726,14 @@ echo -e "  Warnings     : ${YELLOW}${BOLD}${WARNINGS}${NC}"
 echo -e "  Failures     : ${RED}${BOLD}${ERRORS}${NC}"
 echo ""
 
-if [[ "$ERRORS" -gt 0 || "$WARNINGS" -gt 0]] then
-  echo -e "  ${RED}${BOLD}❌  MAILA VALIDATION OF CONFIGURATION FAILED — fix ${ERRORS} error(s) before deploying.${NC}\n"
+if [[ "$ERRORS" -gt 0 ]]; then
+  echo -e "  ${RED}${BOLD}❌  CONFIGURATION VALIDATION FAILED — fix ${ERRORS} error(s) before deploying.${NC}\n"
   exit 1
-# elif [[ "$WARNINGS" -gt 0 ]]; then
-#   echo -e "  ${YELLOW}${BOLD}⚠️   PASSED WITH ${WARNINGS} WARNING(S)${NC}\n"
-#   exit 0
+elif [[ "$WARNINGS" -gt 0 ]]; then
+  echo -e "  ${YELLOW}${BOLD}⚠️  VALIDATION PASSED WITH ${WARNINGS} WARNING(S) — review before deploying.${NC}\n"
+  exit 0
 else
   echo -e "  ${GREEN}${BOLD}✅  ALL CHECKS PASSED${NC}\n"
-  echo -e "  ${GREEN}${BOLD}✅  YOU CAN PROCEED WITH MAILA  DEPLOYMENT\n"
+  echo -e "  ${GREEN}${BOLD}✅  YOU CAN PROCEED WITH MAI LOCAL AGENT DEPLOYMENT${NC}\n"
   exit 0
 fi
