@@ -21,7 +21,6 @@
 # | `-f, --force` | Force reinstall of all tools even if already installed |
 # | `-d, --dry-run` | Show what would be installed without making changes |
 # | `--cloud <provider>` | Cloud provider: aws, azure (required) |
-# | `--skip-optional` | Skip optional tools (yq, jq) |
 # | `--skip-autocomplete` | Skip shell autocomplete configuration |
 # | `--install-dir <path>` | Custom installation directory (default: `~/.local/bin`) |
 # | `--tools <list>` | Install only specific tools (comma-separated) |
@@ -51,8 +50,8 @@
 # # Install to custom directory
 # ./setup-prerequisites-tools.sh --cloud aws --install-dir /opt/bin
 
-# # Skip optional tools and autocomplete
-# ./setup-prerequisites-tools.sh --cloud aws --skip-optional --skip-autocomplete
+# # Skip autocomplete
+# ./setup-prerequisites-tools.sh --cloud aws --skip-autocomplete
 
 # # Quiet mode for CI/CD pipelines
 # ./setup-prerequisites-tools.sh --cloud azure --quiet
@@ -78,12 +77,8 @@
 
 # | Tool | Minimum Version |
 # |------|-----------------|
-# | python | 3.13.0 |
-# | git | 2.53.0 |
 # | kubectl | v1.27.0 |
 # | helm | v3.18.1 |
-# | yq | v4.40.5 |
-# | jq | 1.6 |
 # | aws-cli | 2.18.1 (AWS only) |
 # | azure-cli | 2.83.0 (Azure only) |
 ###############################################################################
@@ -109,25 +104,18 @@ INSTALL_DIR="${HOME}/.local/bin"
 CLOUD_PROVIDER=""
 
 # Minimum required versions
-MIN_PYTHON_VERSION="3.13.0"
-MIN_GIT_VERSION="2.53.0"
 MIN_KUBECTL_VERSION="1.27.0"
 MIN_HELM_VERSION="3.18.1"
-MIN_YQ_VERSION="4.40.5"
-MIN_JQ_VERSION="1.6"
 MIN_AWS_CLI_VERSION="2.18.1"
 MIN_AZURE_CLI_VERSION="2.83.0"
 
 # Pinned versions for installation (>= minimum)
-PYTHON_VERSION="3.13.0"
 KUBECTL_VERSION="v1.33.0"
 HELM_VERSION="v3.18.1"
-YQ_VERSION="v4.40.5"
 AWS_CLI_VERSION="2.18.1"
 AZURE_CLI_VERSION="2.83.0"
 
 # Default options
-SKIP_OPTIONAL=false
 SKIP_AUTOCOMPLETE=false
 FORCE_REINSTALL=false
 QUIET_MODE=false
@@ -140,13 +128,11 @@ declare -A SKIPPED_THIS_RUN=()
 declare -A FAILED_THIS_RUN=()
 declare -A PRE_INSTALL_VERSIONS=()
 
-# Track mandatory vs optional failures
+# Track mandatory failures
 MANDATORY_FAILED=false
-OPTIONAL_FAILED=false
 
-# Define mandatory and optional tools
-MANDATORY_TOOLS=("python" "git" "kubectl" "helm")
-OPTIONAL_TOOLS=("yq" "jq")
+# Define mandatory tools
+MANDATORY_TOOLS=("kubectl" "helm")
 
 #######################################
 # Usage / Help
@@ -165,30 +151,24 @@ Options:
   -q, --quiet                 Suppress non-essential output (useful for CI/CD)
   -f, --force                 Force reinstall of all tools even if already installed
   -d, --dry-run               Show what would be installed without making changes
-  --skip-optional             Skip optional tools (yq, jq)
   --skip-autocomplete         Skip shell autocomplete configuration
   --install-dir <path>        Custom installation directory (default: ~/.local/bin)
   --tools <list>              Install only specific tools (comma-separated)
-                              Available: python,git,kubectl,helm,yq,jq,aws-cli,azure-cli
+                              Available: kubectl,helm,aws-cli,azure-cli
   --retries <n>               Number of retry attempts (default: 3)
   --retry-delay <s>           Delay between retries in seconds (default: 3)
   --kubectl-version <version> Specific kubectl version (default: ${KUBECTL_VERSION})
   --helm-version <version>    Specific helm version (default: ${HELM_VERSION})
 
 Minimum Required Versions:
-  python:     >= ${MIN_PYTHON_VERSION}
-  git:        >= ${MIN_GIT_VERSION}
   kubectl:    >= v${MIN_KUBECTL_VERSION}
   helm:       >= v${MIN_HELM_VERSION}
-  yq:         >= v${MIN_YQ_VERSION}
-  jq:         >= ${MIN_JQ_VERSION}
   aws-cli:    >= ${MIN_AWS_CLI_VERSION} (AWS only)
   azure-cli:  >= ${MIN_AZURE_CLI_VERSION} (Azure only)
 
 Pinned Installation Versions:
   kubectl:    ${KUBECTL_VERSION}
   helm:       ${HELM_VERSION}
-  yq:         ${YQ_VERSION}
   aws-cli:    ${AWS_CLI_VERSION}
   azure-cli:  ${AZURE_CLI_VERSION}
 
@@ -211,8 +191,8 @@ Examples:
   # Install to custom directory
   $(basename "$0") --cloud aws --install-dir /opt/bin
 
-  # Skip optional tools and autocomplete
-  $(basename "$0") --cloud aws --skip-optional --skip-autocomplete
+  # Skip autocomplete
+  $(basename "$0") --cloud aws --skip-autocomplete
 
   # Quiet mode for CI/CD pipelines
   $(basename "$0") --cloud azure --quiet
@@ -267,10 +247,6 @@ parse_args() {
           exit 2
         fi
         shift 2
-        ;;
-      --skip-optional)
-        SKIP_OPTIONAL=true
-        shift
         ;;
       --skip-autocomplete)
         SKIP_AUTOCOMPLETE=true
@@ -393,19 +369,6 @@ get_tool_version() {
   local version=""
   
   case "$tool" in
-    python|python3)
-      # Try python3 first, then python
-      if command_exists python3; then
-        version=$(python3 --version 2>/dev/null | sed -n 's/Python \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      elif command_exists python; then
-        version=$(python --version 2>/dev/null | sed -n 's/Python \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      fi
-      version="${version:-0.0.0}"
-      ;;
-    git)
-      version=$(git --version 2>/dev/null | sed -n 's/.*version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      version="${version:-0.0.0}"
-      ;;
     kubectl)
       version=$(kubectl version --client 2>/dev/null | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
       version="${version:-0.0.0}"
@@ -413,14 +376,6 @@ get_tool_version() {
     helm)
       version=$(helm version --short 2>/dev/null | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
       version="${version:-0.0.0}"
-      ;;
-    yq)
-      version=$(yq --version 2>/dev/null | sed -n 's/.*version v\?\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      version="${version:-0.0.0}"
-      ;;
-    jq)
-      version=$(jq --version 2>/dev/null | sed -n 's/jq-\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      version="${version:-0.0}"
       ;;
     aws|aws-cli)
       version=$(aws --version 2>/dev/null | sed -n 's/aws-cli\/\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
@@ -487,16 +442,6 @@ should_install() {
   # Map tool names for command check
   local cmd="$tool"
   case "$tool" in
-    python) 
-      # Check both python3 and python
-      if command_exists python3; then
-        cmd="python3"
-      elif command_exists python; then
-        cmd="python"
-      else
-        cmd="python3"  # Will fail the check below
-      fi
-      ;;
     aws-cli) cmd="aws" ;;
     azure-cli) cmd="az" ;;
   esac
@@ -506,11 +451,6 @@ should_install() {
     if ! echo "$TOOLS_ONLY" | tr ',' '\n' | grep -qx "$tool"; then
       return 1
     fi
-  fi
-  
-  # Skip optional tools if requested
-  if [[ "$SKIP_OPTIONAL" == true ]] && [[ "$tool" == "yq" || "$tool" == "jq" ]]; then
-    return 1
   fi
   
   # Force reinstall
@@ -538,12 +478,8 @@ should_install() {
 # Capture pre-installation versions
 #######################################
 capture_pre_install_versions() {
-  PRE_INSTALL_VERSIONS[python]=$(get_tool_version python3)
-  PRE_INSTALL_VERSIONS[git]=$(get_tool_version git)
   PRE_INSTALL_VERSIONS[kubectl]=$(get_tool_version kubectl)
   PRE_INSTALL_VERSIONS[helm]=$(get_tool_version helm)
-  PRE_INSTALL_VERSIONS[yq]=$(get_tool_version yq)
-  PRE_INSTALL_VERSIONS[jq]=$(get_tool_version jq)
   PRE_INSTALL_VERSIONS[aws-cli]=$(get_tool_version aws)
   PRE_INSTALL_VERSIONS[azure-cli]=$(get_tool_version az)
 }
@@ -565,49 +501,10 @@ track_install() {
       ;;
     failed)
       FAILED_THIS_RUN[$tool]="$reason"
-      # Check if this is a mandatory tool
-      if is_mandatory_tool "$tool"; then
-        MANDATORY_FAILED=true
-      else
-        OPTIONAL_FAILED=true
-      fi
+      # All tools are mandatory now
+      MANDATORY_FAILED=true
       ;;
   esac
-}
-
-#######################################
-# Check if tool is mandatory
-#######################################
-is_mandatory_tool() {
-  local tool="$1"
-  local mandatory
-  for mandatory in "${MANDATORY_TOOLS[@]}"; do
-    if [[ "$tool" == "$mandatory" ]]; then
-      return 0
-    fi
-  done
-  # Cloud CLI is also mandatory
-  if [[ "$tool" == "aws-cli" && "$CLOUD_PROVIDER" == "aws" ]]; then
-    return 0
-  fi
-  if [[ "$tool" == "azure-cli" && "$CLOUD_PROVIDER" == "azure" ]]; then
-    return 0
-  fi
-  return 1
-}
-
-#######################################
-# Check if tool is optional
-#######################################
-is_optional_tool() {
-  local tool="$1"
-  local optional
-  for optional in "${OPTIONAL_TOOLS[@]}"; do
-    if [[ "$tool" == "$optional" ]]; then
-      return 0
-    fi
-  done
-  return 1
 }
 
 #######################################
@@ -661,123 +558,6 @@ install_pkg() {
 #######################################
 # Tool Installers
 #######################################
-
-install_python() {
-  log_info "Installing Python (minimum version: ${MIN_PYTHON_VERSION})..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install Python via package manager"
-    return 0
-  fi
-  
-  case "$PKG_MANAGER" in
-    apt)
-      # Add deadsnakes PPA for newer Python versions on Ubuntu
-      log_info "Adding deadsnakes PPA for Python ${PYTHON_VERSION}..."
-      retry sudo apt-get update -qq
-      retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq software-properties-common
-      retry sudo add-apt-repository -y ppa:deadsnakes/ppa
-      retry sudo apt-get update -qq
-      retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3.13 python3.13-venv python3.13-distutils || \
-        retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3.13 python3.13-venv
-      
-      # Update alternatives to use Python 3.13
-      sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1 || true
-      ;;
-    yum)
-      # For Amazon Linux / RHEL
-      log_info "Installing Python 3.13 via yum..."
-      retry sudo yum install -y -q python3.13 python3.13-pip || {
-        # Fallback: try to install from source
-        log_warn "Python 3.13 not available in yum, attempting source installation..."
-        install_python_from_source
-      }
-      ;;
-    *)
-      install_python_from_source
-      ;;
-  esac
-  
-  # Verify minimum version
-  local installed_version
-  installed_version=$(get_tool_version python3)
-  
-  if ! version_gte "$installed_version" "$MIN_PYTHON_VERSION"; then
-    log_warn "Installed Python version $installed_version is below minimum $MIN_PYTHON_VERSION"
-    log_warn "Consider manual upgrade or using pyenv."
-    return 1
-  fi
-  
-  return 0
-}
-
-install_python_from_source() {
-  log_info "Installing Python ${PYTHON_VERSION} from source..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install Python ${PYTHON_VERSION} from source"
-    return 0
-  fi
-  
-  # Install build dependencies
-  case "$PKG_MANAGER" in
-    apt)
-      retry sudo apt-get install -y -qq build-essential libssl-dev zlib1g-dev \
-        libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
-        libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev
-      ;;
-    yum)
-      retry sudo yum groupinstall -y -q "Development Tools"
-      retry sudo yum install -y -q openssl-devel bzip2-devel libffi-devel \
-        zlib-devel readline-devel sqlite-devel wget
-      ;;
-  esac
-  
-  local python_tarball="Python-${PYTHON_VERSION}.tgz"
-  local python_url="https://www.python.org/ftp/python/${PYTHON_VERSION}/${python_tarball}"
-  
-  cd /tmp
-  retry curl -fsSL "$python_url" -o "$python_tarball"
-  tar -xzf "$python_tarball"
-  cd "Python-${PYTHON_VERSION}"
-  
-  ./configure --enable-optimizations --prefix=/usr/local
-  make -j "$(nproc)"
-  sudo make altinstall
-  
-  # Create symlinks
-  sudo ln -sf /usr/local/bin/python3.13 /usr/local/bin/python3 || true
-  sudo ln -sf /usr/local/bin/pip3.13 /usr/local/bin/pip3 || true
-  
-  # Cleanup
-  cd /tmp
-  rm -rf "Python-${PYTHON_VERSION}" "$python_tarball"
-  
-  log_success "Python ${PYTHON_VERSION} installed from source"
-}
-
-install_git() {
-  log_info "Installing git (minimum version: ${MIN_GIT_VERSION})..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install git via package manager"
-    return 0
-  fi
-  
-  install_pkg git
-  
-  # Verify minimum version
-  local installed_version
-  installed_version=$(get_tool_version git)
-  
-  if ! version_gte "$installed_version" "$MIN_GIT_VERSION"; then
-    log_warn "Installed git version $installed_version is below minimum $MIN_GIT_VERSION"
-    log_warn "Package manager may not have the required version. Consider manual upgrade."
-    return 1
-  fi
-  
-  return 0
-}
 
 install_kubectl() {
   log_info "Installing kubectl ${KUBECTL_VERSION} (minimum: v${MIN_KUBECTL_VERSION})..."
@@ -864,53 +644,6 @@ install_helm() {
   fi
   
   log_success "helm ${HELM_VERSION} installed to ${INSTALL_DIR}/helm"
-}
-
-install_yq() {
-  log_info "Installing yq ${YQ_VERSION} (minimum: v${MIN_YQ_VERSION})..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install yq ${YQ_VERSION} to ${INSTALL_DIR}/yq"
-    return 0
-  fi
-  
-  local binary="yq_linux_amd64"
-  
-  retry curl -fsSL \
-    "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${binary}" \
-    -o "${INSTALL_DIR}/yq"
-  
-  chmod +x "${INSTALL_DIR}/yq"
-  
-  # Verify the binary works
-  if ! "${INSTALL_DIR}/yq" --version &>/dev/null; then
-    log_error "yq binary verification failed"
-    return 1
-  fi
-  
-  log_success "yq ${YQ_VERSION} installed to ${INSTALL_DIR}/yq"
-}
-
-install_jq() {
-  log_info "Installing jq (minimum: ${MIN_JQ_VERSION})..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install jq"
-    return 0
-  fi
-  
-  case "$PKG_MANAGER" in
-    apt|yum)
-      install_pkg jq
-      ;;
-    *)
-      # Manual installation
-      retry curl -fsSL \
-        "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64" \
-        -o "${INSTALL_DIR}/jq"
-      chmod +x "${INSTALL_DIR}/jq"
-      ;;
-  esac
 }
 
 install_aws_cli() {
@@ -1033,7 +766,6 @@ verify_tool() {
   # Map tool names for command check
   local cmd="$tool"
   case "$tool" in
-    python) cmd="python3" ;;
     aws-cli) cmd="aws" ;;
     azure-cli) cmd="az" ;;
   esac
@@ -1047,10 +779,6 @@ verify_tool() {
   local current_version
   
   case "$tool" in
-    python|python3)
-      version_output="$(python3 --version 2>&1 | head -n1)"
-      current_version=$(get_tool_version python3)
-      ;;
     kubectl)
       version_output="$("$tool" version --client 2>&1 | head -n1)"
       current_version=$(get_tool_version kubectl)
@@ -1196,9 +924,7 @@ print_summary() {
   if [[ "$DRY_RUN" == true ]]; then
     echo "Mode: DRY-RUN (no changes made)"
     echo ""
-    echo "Would install (mandatory):"
-    echo "  - python    (min: ${MIN_PYTHON_VERSION})"
-    echo "  - git       (min: ${MIN_GIT_VERSION})"
+    echo "Would install:"
     echo "  - kubectl   ${KUBECTL_VERSION} (min: v${MIN_KUBECTL_VERSION})"
     echo "  - helm      ${HELM_VERSION} (min: v${MIN_HELM_VERSION})"
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
@@ -1206,18 +932,11 @@ print_summary() {
     elif [[ "$CLOUD_PROVIDER" == "azure" ]]; then
       echo "  - azure-cli (min: ${MIN_AZURE_CLI_VERSION})"
     fi
-    echo ""
-    echo "Would install (optional):"
-    echo "  - yq        ${YQ_VERSION} (min: v${MIN_YQ_VERSION})"
-    echo "  - jq        (min: ${MIN_JQ_VERSION})"
   else
     # Section 1: Minimum Required Versions
     echo "┌─────────────────────────────────────────────────────────────┐"
     echo "│ Minimum Required Versions                                   │"
     echo "├─────────────────────────────────────────────────────────────┤"
-    echo "│ MANDATORY:                                                  │"
-    printf "│  %-12s >= %-42s │\n" "python:" "${MIN_PYTHON_VERSION}"
-    printf "│  %-12s >= %-42s │\n" "git:" "${MIN_GIT_VERSION}"
     printf "│  %-12s >= v%-41s │\n" "kubectl:" "${MIN_KUBECTL_VERSION}"
     printf "│  %-12s >= v%-41s │\n" "helm:" "${MIN_HELM_VERSION}"
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
@@ -1225,9 +944,6 @@ print_summary() {
     elif [[ "$CLOUD_PROVIDER" == "azure" ]]; then
       printf "│  %-12s >= %-42s │\n" "azure-cli:" "${MIN_AZURE_CLI_VERSION}"
     fi
-    echo "│ OPTIONAL:                                                   │"
-    printf "│  %-12s >= v%-41s │\n" "yq:" "${MIN_YQ_VERSION}"
-    printf "│  %-12s >= %-42s │\n" "jq:" "${MIN_JQ_VERSION}"
     echo "└─────────────────────────────────────────────────────────────┘"
     echo ""
     
@@ -1242,7 +958,6 @@ print_summary() {
     local old_ver
     local cur_ver
     local reason
-    local tool_type
     
     # Installed tools
     if [[ ${#INSTALLED_THIS_RUN[@]} -gt 0 ]]; then
@@ -1251,15 +966,10 @@ print_summary() {
       for tool in "${!INSTALLED_THIS_RUN[@]}"; do
         new_ver=$(get_tool_version "$tool")
         old_ver="${PRE_INSTALL_VERSIONS[$tool]:-0.0.0}"
-        if is_mandatory_tool "$tool"; then
-          tool_type="mandatory"
-        else
-          tool_type="optional"
-        fi
         if [[ "$old_ver" == "0.0.0" ]]; then
-          printf "│   ✓ %-10s %-8s (new install, %s)        │\n" "$tool:" "$new_ver" "$tool_type"
+          printf "│   ✓ %-10s %-10s (new install)                     │\n" "$tool:" "$new_ver"
         else
-          printf "│   ✓ %-10s %-6s → %-6s (%s)              │\n" "$tool:" "$old_ver" "$new_ver" "$tool_type"
+          printf "│   ✓ %-10s %-6s → %-6s (upgraded)                  │\n" "$tool:" "$old_ver" "$new_ver"
         fi
       done
     fi
@@ -1271,12 +981,7 @@ print_summary() {
       for tool in "${!SKIPPED_THIS_RUN[@]}"; do
         cur_ver=$(get_tool_version "$tool")
         reason="${SKIPPED_THIS_RUN[$tool]}"
-        if is_mandatory_tool "$tool"; then
-          tool_type="mandatory"
-        else
-          tool_type="optional"
-        fi
-        printf "│   ○ %-10s %-8s (%s, %s)              │\n" "$tool:" "$cur_ver" "$reason" "$tool_type"
+        printf "│   ○ %-10s %-10s (%s)                       │\n" "$tool:" "$cur_ver" "$reason"
       done
     fi
     
@@ -1286,12 +991,7 @@ print_summary() {
       echo "│ ✗ FAILED:                                                   │"
       for tool in "${!FAILED_THIS_RUN[@]}"; do
         reason="${FAILED_THIS_RUN[$tool]}"
-        if is_mandatory_tool "$tool"; then
-          tool_type="MANDATORY"
-        else
-          tool_type="optional"
-        fi
-        printf "│   ✗ %-10s %-30s [%s] │\n" "$tool:" "$reason" "$tool_type"
+        printf "│   ✗ %-10s %-44s │\n" "$tool:" "$reason"
       done
     fi
     
@@ -1306,13 +1006,11 @@ print_summary() {
     echo "┌─────────────────────────────────────────────────────────────┐"
     echo "│ Current Tool Status                                         │"
     echo "├─────────────────────────────────────────────────────────────┤"
-    echo "│ MANDATORY:                                                  │"
     
-    # Helper function for status display - defined inline to avoid scope issues
+    # Helper function for status display
     print_tool_status() {
       local tool="$1"
       local min_ver="$2"
-      local is_optional="$3"
       local cmd="$tool"
       local display_name="$tool"
       local cur_ver
@@ -1320,14 +1018,6 @@ print_summary() {
       local status_text
       
       case "$tool" in
-        python) 
-          if command_exists python3; then
-            cmd="python3"
-          elif command_exists python; then
-            cmd="python"
-          fi
-          display_name="python" 
-          ;;
         aws-cli) cmd="aws"; display_name="aws-cli" ;;
         azure-cli) cmd="az"; display_name="azure-cli" ;;
       esac
@@ -1342,38 +1032,27 @@ print_summary() {
         fi
         printf "│  %s %-11s %-12s %-28s │\n" "$status" "${display_name}:" "$cur_ver" "($status_text)"
       else
-        if [[ "$is_optional" == "true" ]]; then
-          printf "│  ○ %-11s %-12s %-28s │\n" "${display_name}:" "---" "(NOT INSTALLED - optional)"
-        else
-          printf "│  ✗ %-11s %-12s %-28s │\n" "${display_name}:" "---" "(NOT INSTALLED - REQUIRED)"
-        fi
+        printf "│  ✗ %-11s %-12s %-28s │\n" "${display_name}:" "---" "(NOT INSTALLED)"
       fi
     }
     
-    print_tool_status "python" "$MIN_PYTHON_VERSION" "false"
-    print_tool_status "git" "$MIN_GIT_VERSION" "false"
-    print_tool_status "kubectl" "$MIN_KUBECTL_VERSION" "false"
-    print_tool_status "helm" "$MIN_HELM_VERSION" "false"
+    print_tool_status "kubectl" "$MIN_KUBECTL_VERSION"
+    print_tool_status "helm" "$MIN_HELM_VERSION"
     
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
-      print_tool_status "aws-cli" "$MIN_AWS_CLI_VERSION" "false"
+      print_tool_status "aws-cli" "$MIN_AWS_CLI_VERSION"
     elif [[ "$CLOUD_PROVIDER" == "azure" ]]; then
-      print_tool_status "azure-cli" "$MIN_AZURE_CLI_VERSION" "false"
+      print_tool_status "azure-cli" "$MIN_AZURE_CLI_VERSION"
     fi
     
-    echo "│ OPTIONAL:                                                   │"
-    print_tool_status "yq" "$MIN_YQ_VERSION" "true"
-    print_tool_status "jq" "$MIN_JQ_VERSION" "true"
-    
     echo "├─────────────────────────────────────────────────────────────┤"
-    echo "│ Legend: ✓ = OK  ⚠ = Below minimum  ✗ = Missing (required)   │"
-    echo "│         ○ = Missing (optional)                              │"
+    echo "│ Legend: ✓ = OK  ⚠ = Below minimum  ✗ = Not installed        │"
     echo "└─────────────────────────────────────────────────────────────┘"
     
-    # Check if all mandatory tools are compatible
+    # Check if all tools are compatible
     local all_compatible=true
-    local tools_to_check=("python" "git" "kubectl" "helm")
-    local min_versions=("$MIN_PYTHON_VERSION" "$MIN_GIT_VERSION" "$MIN_KUBECTL_VERSION" "$MIN_HELM_VERSION")
+    local tools_to_check=("kubectl" "helm")
+    local min_versions=("$MIN_KUBECTL_VERSION" "$MIN_HELM_VERSION")
     local i
     
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
@@ -1395,9 +1074,9 @@ print_summary() {
     
     echo ""
     if [[ "$all_compatible" == true ]]; then
-      log_success "All mandatory tools meet minimum version requirements!"
+      log_success "All tools meet minimum version requirements!"
     else
-      log_warn "Some mandatory tools do not meet minimum version requirements. Please review above."
+      log_warn "Some tools do not meet minimum version requirements. Please review above."
     fi
   fi
   
@@ -1449,32 +1128,7 @@ main() {
   
   echo ""
   
-  # Install Python first (required for some cloud CLIs) - MANDATORY
-  if should_install python "$MIN_PYTHON_VERSION"; then
-    if install_python; then
-      track_install "python" "installed" "new/upgraded"
-    else
-      track_install "python" "failed" "installation error"
-    fi
-  else
-    track_install "python" "skipped" "meets minimum"
-    log_info "Python already meets minimum version (use --force to reinstall)"
-  fi
-  verify_tool python "$MIN_PYTHON_VERSION" || true
-  
-  # Install core tools - MANDATORY
-  if should_install git "$MIN_GIT_VERSION"; then
-    if install_git; then
-      track_install "git" "installed" "new/upgraded"
-    else
-      track_install "git" "failed" "installation error"
-    fi
-  else
-    track_install "git" "skipped" "meets minimum"
-    log_info "git already meets minimum version (use --force to reinstall)"
-  fi
-  verify_tool git "$MIN_GIT_VERSION" || true
-  
+  # Install kubectl
   if should_install kubectl "$MIN_KUBECTL_VERSION"; then
     if install_kubectl; then
       track_install "kubectl" "installed" "new/upgraded"
@@ -1487,6 +1141,7 @@ main() {
   fi
   verify_tool kubectl "$MIN_KUBECTL_VERSION" || true
   
+  # Install helm
   if should_install helm "$MIN_HELM_VERSION"; then
     if install_helm; then
       track_install "helm" "installed" "new/upgraded"
@@ -1499,34 +1154,7 @@ main() {
   fi
   verify_tool helm "$MIN_HELM_VERSION" || true
   
-  # Install optional tools - OPTIONAL (failures are warnings only)
-  if should_install yq "$MIN_YQ_VERSION"; then
-    if install_yq; then
-      track_install "yq" "installed" "new/upgraded"
-    else
-      track_install "yq" "failed" "installation error"
-      log_warn "yq installation failed (optional tool - continuing)"
-    fi
-  elif [[ "$SKIP_OPTIONAL" != true ]]; then
-    track_install "yq" "skipped" "meets minimum"
-    log_info "yq already meets minimum version (use --force to reinstall)"
-  fi
-  verify_tool yq "$MIN_YQ_VERSION" || true
-  
-  if should_install jq "$MIN_JQ_VERSION"; then
-    if install_jq; then
-      track_install "jq" "installed" "new/upgraded"
-    else
-      track_install "jq" "failed" "installation error"
-      log_warn "jq installation failed (optional tool - continuing)"
-    fi
-  elif [[ "$SKIP_OPTIONAL" != true ]]; then
-    track_install "jq" "skipped" "meets minimum"
-    log_info "jq already meets minimum version (use --force to reinstall)"
-  fi
-  verify_tool jq "$MIN_JQ_VERSION" || true
-  
-  # Install cloud-specific CLI - MANDATORY
+  # Install cloud-specific CLI
   case "$CLOUD_PROVIDER" in
     aws)
       if should_install aws-cli "$MIN_AWS_CLI_VERSION"; then
@@ -1570,18 +1198,10 @@ main() {
   if [[ "$MANDATORY_FAILED" == true ]]; then
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║  ✗ BOOTSTRAP FAILED                                       ║"
-    echo "║    One or more mandatory tools failed to install.         ║"
+    echo "║    One or more tools failed to install.                   ║"
     echo "║    Please review the errors above and retry.              ║"
     echo "╚═══════════════════════════════════════════════════════════╝"
     exit 4
-  elif [[ "$OPTIONAL_FAILED" == true ]]; then
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║  ⚠ BOOTSTRAP COMPLETE (with warnings)                     ║"
-    echo "║    All mandatory tools installed successfully.            ║"
-    echo "║    Some optional tools failed - see warnings above.       ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
-    log_success "Bootstrap complete! (optional tools had warnings)"
-    exit 0
   else
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║  ✓ BOOTSTRAP COMPLETE                                     ║"
