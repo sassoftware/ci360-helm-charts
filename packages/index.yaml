@@ -70,28 +70,47 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/marketing-ai-0.0.44.tgz
     version: 0.0.44
-
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.15.0
+    created: "2026-03-31T08:42:34.699396244Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.15.0
+    description: A Helm chart for native components of CI360 Decisioning
+    digest: b1412d499f103630827383399b8a5490f518bcd6e7c0a874efb2cb8657a47dad
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - marketing-decisioning/sas-marketing-decisioning-0.15.0.tgz
+    version: 0.15.0
+  - apiVersion: v2
     appVersion: 0.10.0
-    created: "2026-03-17T07:52:07.136003927Z"
-    dependencies: []
+    created: "2026-03-31T08:42:34.698513551Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.10.0
     description: A Helm chart for native components of CI360 Decisioning
     digest: d615e0f7bc811fde4db3b7373a69a8d02dbff4f4266a4ef701fe75306e869315
     name: sas-marketing-decisioning
     type: application
     urls:
-      - marketing-decisioning/sas-marketing-decisioning-0.10.0.tgz
-    version: 0.10.0            
+    - marketing-decisioning/sas-marketing-decisioning-0.10.0.tgz
+    version: 0.10.0
   - apiVersion: v2
-    appVersion: "0.9.0"            
-    created: "2026-03-16T00:00:00.000000000+05:30"
-    dependencies: []        
-    description: Helm chart for native components of CI360 Decisioning
-    digest: 6bc05d1d73c98d8f10317347c82c8bf4aa64a4bab106466de82f9da1e585f239                     
+    appVersion: 0.9.0
+    created: "2026-03-31T08:42:34.700138395Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.9.0
+    description: A Helm chart for native components of CI360 Decisioning
+    digest: 187918fe4c2616652bcc62bf95127fc540a113e93c2a293a51d56bb5d0c2fb1a
     name: sas-marketing-decisioning
     type: application
     urls:
-      - marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
-    version: 0.9.0 
-generated: "2026-03-13T15:32:28.9414235+05:30"
+    - marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
+    version: 0.9.0
+generated: "2026-03-31T08:42:34.697651708Z"
