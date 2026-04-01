@@ -10,6 +10,7 @@ _k8sAuthSecretName: &k8s_auth_secret_name "ci360-api-credentials"
 _connectionString: &azureConnectionString "<input-azure-storage-connection-string-here>"
 _workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
 _agentpool: &agentpool "agentpool"
+_remoteBaseLogFolder: &remoteBaseLogFolder "wasb://airflow-logs@<blob bucket name>.blob.core.windows.net/logs"
 
 # =========================
 # =========================
@@ -61,6 +62,7 @@ airflow:
   config:
     logging:
       remote_logging: "True"
+      remote_base_log_folder: *remoteBaseLogFolder
     webserver:
       enable_proxy_fix: "True"
 
