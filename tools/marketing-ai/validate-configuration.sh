@@ -37,19 +37,22 @@ cat <<EOF
 Usage: $0 --cloud <aws|azure> --values <file> [OPTIONS]
 
 Required:
-  --cloud       aws or azure
-  --values      Path to the Helm values YAML file (e.g., values-aws.yaml or values-azure.yaml)
+  --cloud         aws or azure
+  --values        Path to the Helm values YAML file
 
 Optional:
-  --namespace   K8s namespace (SA annotations, secrets)
-  --skip-cloud  Skip cloud CLI checks
-  --skip-k8s    Skip Kubernetes checks
-  --help        Show this message
+  --namespace     K8s namespace (SA annotations, secrets)
+  --aws-profile   AWS CLI profile name to use (e.g. my-sso-profile)
+                  Can also be set via AWS_PROFILE environment variable
+  --skip-cloud    Skip cloud CLI checks
+  --skip-k8s      Skip Kubernetes checks
+  --help          Show this message
 
 Examples:
-  $0 --cloud aws   --values ../local-agent/values-aws.yaml   --namespace mai-ns
-  $0 --cloud azure --values ../local-agent/values-azure.yaml --namespace mai-ns
-  $0 --cloud aws   --values ../local-agent/values-aws.yaml   --skip-cloud
+  $0 --cloud aws --values values-aws.yaml --namespace mai-ns --aws-profile my-sso-profile
+  $0 --cloud azure --values values-azure.yaml --namespace mai-ns
+  $0 --cloud aws --values values-aws.yaml --skip-cloud AWS_PROFILE=my-sso-profile 
+  $0 --cloud aws --values values-aws.yaml
 EOF
 exit 0
 }
@@ -149,11 +152,19 @@ yaml_get() {
     # Fallback: grep-based extraction (handles simple cases)
     # Convert dot notation to grep pattern - get the last key
     local key=$(echo "$key_path" | awk -F. '{print $NF}')
-    result=$(grep -E "^[[:space:]]*${key}:" "$file" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
+    result=$(grep -E "^[[:space:]]*${key}:" "$file" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*//' | tr -d '\r' | xargs 2>/dev/null || echo "")
   fi
 
-  # Clean up the result
-  result=$(echo "$result" | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "$result")
+  # Clean up the result - remove surrounding quotes but preserve empty string detection
+  result=$(echo "$result" | tr -d '\r' | xargs 2>/dev/null || echo "$result")
+  
+  # Check if result is just empty quotes "" or ''
+  if [[ "$result" == '""' || "$result" == "''" ]]; then
+    result=""
+  else
+    # Remove quotes from non-empty values
+    result=$(echo "$result" | tr -d '"' | tr -d "'" | xargs 2>/dev/null || echo "$result")
+  fi
   
   # Resolve anchor reference if present
   if is_unresolved_anchor "$result"; then
@@ -246,15 +257,17 @@ VALUES_FILE=""
 NAMESPACE=""
 SKIP_CLOUD=false
 SKIP_K8S=false
+AWS_PROFILE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --cloud)      CLOUD="$2";       shift 2 ;;
-    --values)     VALUES_FILE="$2"; shift 2 ;;
-    --namespace)  NAMESPACE="$2";   shift 2 ;;
-    --skip-cloud) SKIP_CLOUD=true;  shift ;;
-    --skip-k8s)   SKIP_K8S=true;    shift ;;
-    --help)       usage ;;
+    --cloud)        CLOUD="$2";        shift 2 ;;
+    --values)       VALUES_FILE="$2";  shift 2 ;;
+    --namespace)    NAMESPACE="$2";    shift 2 ;;
+    --aws-profile)  AWS_PROFILE="$2";  shift 2 ;;
+    --skip-cloud)   SKIP_CLOUD=true;   shift ;;
+    --skip-k8s)     SKIP_K8S=true;     shift ;;
+    --help)         usage ;;
     *) echo -e "${RED}Unknown option: $1${NC}"; usage ;;
   esac
 done
@@ -306,6 +319,15 @@ ALL_STORAGE_CLASSES=$(echo "$ALL_STORAGE_CLASSES" | sort -u | grep -v "^$" || ec
 
 # AWS-specific values
 if [[ "$CLOUD" == "aws" ]]; then
+  # ─── Set AWS profile for all subsequent AWS CLI calls ─────────
+  # If --aws-profile is passed use it, otherwise honour $AWS_PROFILE env var
+  if [[ -n "$AWS_PROFILE" ]]; then
+    export AWS_PROFILE="$AWS_PROFILE"
+  fi
+
+  # Helper: run any aws command with the active profile
+  aws_cmd() { aws "$@" ${AWS_PROFILE:+--profile "$AWS_PROFILE"}; }
+  
   # IAM roles
   IAM_ROLES=$(yaml_extract_iam_roles "$VALUES_FILE")
   IAM_ROLE_NAMES=$(yaml_extract_iam_role_names "$VALUES_FILE")
@@ -352,6 +374,21 @@ if [[ "$CLOUD" == "azure" ]]; then
   # ExternalGatewayHost
   EXTERNAL_GW_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_externalGatewayHost")
   [[ -z "$EXTERNAL_GATEWAY_HOST" || "$EXTERNAL_GATEWAY_HOST" == "null" ]] && EXTERNAL_GATEWAY_HOST="$EXTERNAL_GW_ANCHOR"
+
+  # Extract AIRFLOW_CONN_WASB_DEFAULT from airflow.extraEnv block
+  # Format: - name: AIRFLOW_CONN_WASB_DEFAULT
+  #           value: '{"conn_type": "wasb", "login": "<account>", "password": "<key>"}'
+  WASB_CONN_RAW=$(grep -A1 'AIRFLOW_CONN_WASB_DEFAULT' "$VALUES_FILE" 2>/dev/null \
+    | grep 'value:' \
+    | sed 's/.*value:[[:space:]]*//' \
+    | tr -d "'" \
+    | tr -d '\r' \
+    || echo "")
+
+  # Extract login (storage account name) and password (storage account key) from JSON value
+  WASB_LOGIN=$(echo "$WASB_CONN_RAW" | grep -oE '"login"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"login"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' || echo "")
+  WASB_PASSWORD=$(echo "$WASB_CONN_RAW" | grep -oE '"password"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' || echo "")
+  WASB_CONN_TYPE=$(echo "$WASB_CONN_RAW" | grep -oE '"conn_type"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"conn_type"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' || echo "")
 fi
 
 # ═══════════════════════════════════════════════════════════════
@@ -463,17 +500,25 @@ if [[ "$SKIP_CLOUD" == false ]]; then
   if [[ "$CLOUD" == "aws" ]]; then
     log_section "2  AWS Cloud Validation"
 
-    # 2a. Authentication
-    if aws sts get-caller-identity &>/dev/null; then
-      ACCT=$(aws sts get-caller-identity --query "Account" --output text 2>/dev/null)
-      log_pass "AWS credentials valid (Account: $ACCT)"
+    # Show which profile is active
+    if [[ -n "$AWS_PROFILE" ]]; then
+      log_info "Using AWS profile: ${AWS_PROFILE}"
     else
-      log_fail "AWS credentials invalid — run 'aws configure' or check IAM role"
+      log_info "Using default AWS profile / environment credentials"
     fi
 
-    # 2b. S3 bucket - only check if value is valid (not an anchor reference)
+    # 2a. Authentication
+    if aws_cmd sts get-caller-identity &>/dev/null; then
+      ACCT=$(aws_cmd sts get-caller-identity --query "Account" --output text 2>/dev/null)
+      ARN=$(aws_cmd sts get-caller-identity --query "Arn" --output text 2>/dev/null)
+      log_pass "AWS credentials valid (Account: $ACCT | ARN: $ARN)"
+    else
+      log_fail "AWS credentials invalid — run 'aws sso login --profile <profile>' or check IAM role"
+    fi
+
+    # 2b. S3 bucket
     if [[ -n "$STORAGE_BUCKET" && ! "$STORAGE_BUCKET" =~ ^\* ]]; then
-      if aws s3 ls "s3://${STORAGE_BUCKET}" &>/dev/null; then
+      if aws_cmd s3 ls "s3://${STORAGE_BUCKET}" &>/dev/null; then
         log_pass "S3 bucket accessible: s3://${STORAGE_BUCKET}"
       else
         log_fail "S3 bucket NOT accessible: s3://${STORAGE_BUCKET}"
@@ -484,7 +529,7 @@ if [[ "$SKIP_CLOUD" == false ]]; then
 
     # 2c. S3 remote log bucket (if different from main bucket)
     if [[ -n "$S3_LOG_BUCKET" && ! "$S3_LOG_BUCKET" =~ ^\* && "$S3_LOG_BUCKET" != "$STORAGE_BUCKET" ]]; then
-      if aws s3 ls "s3://${S3_LOG_BUCKET}" &>/dev/null; then
+      if aws_cmd s3 ls "s3://${S3_LOG_BUCKET}" &>/dev/null; then
         log_pass "S3 remote log bucket accessible: s3://${S3_LOG_BUCKET}"
       else
         log_fail "S3 remote log bucket NOT accessible: s3://${S3_LOG_BUCKET}"
@@ -497,7 +542,7 @@ if [[ "$SKIP_CLOUD" == false ]]; then
     if [[ -n "$IAM_ROLE_NAMES" ]]; then
       while IFS= read -r role; do
         [[ -z "$role" ]] && continue
-        if aws iam get-role --role-name "$role" &>/dev/null; then
+        if aws_cmd iam get-role --role-name "$role" &>/dev/null; then
           log_pass "IAM role exists: ${role}"
         else
           log_fail "IAM role NOT found: ${role}"
@@ -509,30 +554,23 @@ if [[ "$SKIP_CLOUD" == false ]]; then
 
     # 2e. ECR registry access
     if [[ -n "$EXTERNAL_GATEWAY_HOST" && ! "$EXTERNAL_GATEWAY_HOST" =~ ^\* ]]; then
-      # Map ExternalGatewayHost to ECR region
       case "$EXTERNAL_GATEWAY_HOST" in
         *dev.cidev.sas.us*|*stage.cistage.sas.com*|*prod.ci360.sas.com*|*training.ci360.sas.com*|*demo.cidemo.sas.com*)
-          ECR_REGION="us-east-1"
-          ;;
+          ECR_REGION="us-east-1" ;;
         *eu-prod.ci360.sas.com*)
-          ECR_REGION="eu-west-1"
-          ;;
+          ECR_REGION="eu-west-1" ;;
         *apn-prod.ci360.sas.com*)
-          ECR_REGION="ap-northeast-1"
-          ;;
+          ECR_REGION="ap-northeast-1" ;;
         *syd-prod.ci360.sas.com*)
-          ECR_REGION="ap-southeast-2"
-          ;;
+          ECR_REGION="ap-southeast-2" ;;
         *mum-prod.ci360.sas.com*)
-          ECR_REGION="ap-south-1"
-          ;;
+          ECR_REGION="ap-south-1" ;;
         *)
-          ECR_REGION=""
-          ;;
+          ECR_REGION="" ;;
       esac
-      
+
       if [[ -n "$ECR_REGION" ]]; then
-        if aws ecr describe-repositories --region "$ECR_REGION" --max-items 1 &>/dev/null; then
+        if aws_cmd ecr describe-repositories --region "$ECR_REGION" --max-items 1 &>/dev/null; then
           log_pass "ECR registry accessible in region: ${ECR_REGION}"
         else
           log_fail "ECR registry NOT accessible in region: ${ECR_REGION}"
@@ -580,21 +618,81 @@ if [[ "$SKIP_CLOUD" == false ]]; then
 
     # 2d. Workload Identity
     if [[ -n "$AZURE_WORKLOAD_IDENTITY" && ! "$AZURE_WORKLOAD_IDENTITY" =~ ^\* ]]; then
-      log_info "Workload Identity Client ID: ${AZURE_WORKLOAD_IDENTITY}"
-      # Validate the format
+      # Validate UUID format
       if [[ "$AZURE_WORKLOAD_IDENTITY" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
-        log_pass "Workload Identity Client ID format is valid"
+        log_pass "Workload Identity Client ID format is valid: ${AZURE_WORKLOAD_IDENTITY}"
+
+        # Verify the service principal actually exists in Azure AD
+        if az ad sp show --id "$AZURE_WORKLOAD_IDENTITY" &>/dev/null 2>&1; then
+          SP_NAME=$(az ad sp show --id "$AZURE_WORKLOAD_IDENTITY" --query "displayName" --output tsv 2>/dev/null || echo "unknown")
+          log_pass "Workload Identity Client ID exists in Azure AD (displayName: ${SP_NAME})"
+        else
+          log_fail "Workload Identity Client ID '${AZURE_WORKLOAD_IDENTITY}' NOT found in Azure AD — verify the client ID is correct"
+        fi
       else
-        log_warn "Workload Identity Client ID format may be invalid"
+        log_fail "Workload Identity Client ID '${AZURE_WORKLOAD_IDENTITY}' has invalid UUID format (expected: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
       fi
     else
-      log_warn "No Workload Identity Client ID found in values"
+      log_fail "Workload Identity Client ID is missing or unresolved — set _workloadIdentityClientId in values file"
     fi
 
     # 2e. Node pool (agentpool)
     if [[ -n "$AGENTPOOL" && ! "$AGENTPOOL" =~ ^\* ]]; then
       log_info "Node selector agentpool: ${AGENTPOOL}"
     fi
+
+    # 2f. AIRFLOW_CONN_WASB_DEFAULT validation
+    # log_section "2f  Airflow WASB Connection (airflow.extraEnv)"
+
+    if [[ -z "$WASB_CONN_RAW" ]]; then
+      log_fail "AIRFLOW_CONN_WASB_DEFAULT is missing from airflow.extraEnv — required for Azure blob storage access"
+    else
+      log_pass "AIRFLOW_CONN_WASB_DEFAULT entry found in airflow.extraEnv"
+
+      # Validate conn_type
+      if [[ "$WASB_CONN_TYPE" == "wasb" ]]; then
+        log_pass "WASB conn_type is correct: wasb"
+      else
+        log_fail "WASB conn_type is '${WASB_CONN_TYPE:-<missing>}' — expected 'wasb'"
+      fi
+
+      # Validate login (storage account name)
+      if [[ -z "$WASB_LOGIN" || "$WASB_LOGIN" == "<input-storage-account-name-here>" ]]; then
+        log_fail "WASB login (storage account name) is not set — replace '<input-storage-account-name-here>' with actual account name"
+      else
+        # Cross-check with connection string account name
+        if [[ -n "$AZURE_STORAGE_ACCOUNT" && "$WASB_LOGIN" != "$AZURE_STORAGE_ACCOUNT" ]]; then
+          log_warn "WASB login '${WASB_LOGIN}' does not match storage account in connection string '${AZURE_STORAGE_ACCOUNT}'"
+        else
+          log_pass "WASB login (storage account name) is set: ${WASB_LOGIN}"
+        fi
+      fi
+
+      # Validate password (storage account key)
+      if [[ -z "$WASB_PASSWORD" || "$WASB_PASSWORD" == "<input-storage-account-key-here>" ]]; then
+        log_fail "WASB password (storage account key) is not set — replace '<input-storage-account-key-here>' with actual account key"
+      else
+        # Mask key in output — show only first 4 and last 4 chars
+        masked_key="${WASB_PASSWORD:0:4}****${WASB_PASSWORD: -4}"
+        log_pass "WASB password (storage account key) is set: ${masked_key}"
+
+        # Verify the key is valid by testing storage account access
+        if az storage account show --name "$WASB_LOGIN" \
+            --query "name" --output tsv &>/dev/null 2>&1; then
+          if az storage container list \
+              --account-name "$WASB_LOGIN" \
+              --account-key "$WASB_PASSWORD" \
+              --output none &>/dev/null 2>&1; then
+            log_pass "WASB storage account key verified — able to list containers for '${WASB_LOGIN}'"
+          else
+            log_fail "WASB storage account key is invalid — cannot access storage account '${WASB_LOGIN}'"
+          fi
+        else
+          log_warn "Could not verify WASB storage account '${WASB_LOGIN}' — check account name"
+        fi
+      fi
+    fi
+
   fi
 
 else
@@ -665,20 +763,23 @@ if [[ "$SKIP_K8S" == false ]]; then
         if kubectl get secret "$K8S_AUTH_SECRET_NAME" -n "$NAMESPACE" &>/dev/null; then
           log_pass "Secret '${K8S_AUTH_SECRET_NAME}' exists"
         else
-          log_warn "Secret '${K8S_AUTH_SECRET_NAME}' not found — create before deployment or use fleets.existingSecret"
+          log_fail "Secret '${K8S_AUTH_SECRET_NAME}' not found — create before deployment"
         fi
       fi
       
       # Check fleets.existingSecret ONLY when mode is "gateway"
       if [[ "$FLEETS_MODE" == "gateway" ]]; then
-        if [[ -n "$EXISTING_SECRET" && "$EXISTING_SECRET" != "null" && "$EXISTING_SECRET" != '""' && ! "$EXISTING_SECRET" =~ ^\* ]]; then
-          if kubectl get secret "$EXISTING_SECRET" -n "$NAMESPACE" &>/dev/null; then
-            log_pass "Fleets secret '${EXISTING_SECRET}' exists"
+        # Trim whitespace and quotes from EXISTING_SECRET
+        EXISTING_SECRET_CLEAN=$(echo "$EXISTING_SECRET" | tr -d '"' | tr -d "'" | xargs 2>/dev/null || echo "")
+        
+        if [[ -n "$EXISTING_SECRET_CLEAN" && "$EXISTING_SECRET_CLEAN" != "null" && ! "$EXISTING_SECRET_CLEAN" =~ ^\* ]]; then
+          if kubectl get secret "$EXISTING_SECRET_CLEAN" -n "$NAMESPACE" &>/dev/null; then
+            log_pass "Fleets secret '${EXISTING_SECRET_CLEAN}' exists"
           else
-            log_fail "Fleets secret '${EXISTING_SECRET}' specified but not found in namespace '${NAMESPACE}'"
+            log_fail "Fleets secret '${EXISTING_SECRET_CLEAN}' specified but not found in namespace '${NAMESPACE}'"
           fi
         else
-          log_info "No fleets.existingSecret specified — credentials will use inline values or be created"
+          log_fail "fleets.existingSecret is blank or empty — please specify a valid secret name when using gateway mode"
         fi
       elif [[ "$FLEETS_MODE" == "direct" ]]; then
         log_info "Fleets mode is 'direct' — skipping fleets.existingSecret check"
