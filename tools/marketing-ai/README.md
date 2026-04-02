@@ -245,7 +245,7 @@ Run the following commands.
          <td>_connectionString</td>
          <td>Not Applicable</td>
          <td>DefaultEndpointsProtocol=https;AccountName=&lt;blob bucket name&gt;;AccountKey=&lt;account key&gt;;EndpointSuffix=core.windows.net</td>
-         <td>This is the connection string for Azure blob storage.</td>
+         <td>This is the connection string for Azure blob storage. <br> <br> How to get it in the console? Azure Console →  Blob Storage → Blob Storage Name → Security + Networking → Connection String</td>
        </tr>
        <tr>
          <td>_dagsStorageClassName</td>
@@ -257,13 +257,15 @@ Run the following commands.
          <td>_externalGatewayHost</td>
          <td>extapigwservice-dev.cidev.sas.us</td>
          <td>extapigwservice-dev.cidev.sas.us</td>
-         <td>You can find this value by logging into the CI360 application as admin and navigating to <strong>General settings → Access Points</strong>.</td>
+         <td>You can find this value by logging into the CI360 application as admin and navigating to General settings → Access Points.</td>
        </tr>
        <tr>
          <td>_k8sAuthSecretName</td>
-         <td>Secret name used in section 1.5</td>
-         <td>Secret name used in section 1.5</td>
          <td></td>
+         <td></td>
+         <td>
+           Name of the Kubernetes secret that you created in point&nbsp;4 of the "Configure the Kubernetes Environment" section (the namespace and secret that you created there must match this value).
+         </td>
        </tr>
        <tr>
          <td>_remoteBaseLogFolder</td>
@@ -286,7 +288,7 @@ Run the following commands.
          <td>_serviceRole</td>
          <td>Application service role ARN</td>
          <td>Not Applicable</td>
-         <td>Enables access to cloud services.</td>
+         <td>Enables access to cloud services. <br> <br> How to get it in the console? Azure Portal →  Managed Identities →  Select the one you have created →  Overview → client ID</td>
        </tr>
        <tr>
          <td>_storageClassName</td>
@@ -317,19 +319,28 @@ Run the following commands.
          <td>fleets.existingSecret</td>
          <td>fleet-credentials</td>
          <td>fleet-credentials</td>
-         <td>Secret name used in step 1.5.</td>
+         <td>
+           Name of the Kubernetes secret that you created in
+           <strong>point&nbsp;4 of the "Configure the Kubernetes Environment" section</strong>
+           (the namespace and secret that you created there must match this value).
+         </td>
        </tr>
        <tr>
          <td>global.fleets.hostName</td>
          <td>E.g. fleetsapigw-demo.cidemo.sas.com</td>
          <td>E.g. fleetsapigw-demo.cidemo.sas.com</td>
-         <td>The fleet external API gateway value provided by SAS as in step 1.1.</td>
+         <td>The fleet external API gateway value provided by SAS through tenant onboarding welcome email</td>
        </tr>
        <tr>
          <td>global.fleets.tenant</td>
          <td>Tenant moniker for the tenant created on the CI360 side.</td>
          <td>Tenant moniker for the tenant created on the CI360 side.</td>
-         <td></td>
+       </tr>
+        <tr>
+         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT | login, password</td>
+         <td>Not Applicable</td>
+         <td>login: '<input-storage-account-name-here>' <br> password: '<input-storage-account-key-here></td>'
+         <td>used to created Airflow default connection for Azure. <br><br> To get these values → Refer to the _connectionString login = AccountName →  <Blob Storage Name> Password = AccountKey → <String Value></td>
        </tr>
      </tbody>
    </table>
