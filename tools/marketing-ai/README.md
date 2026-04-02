@@ -48,90 +48,62 @@ Deploy and configure a Kubernetes cluster. This cluster will be configured to co
 cloud-service provider. For more information, see
 [https://kubernetes.io/docs/setup/](https://kubernetes.io/docs/setup/).
 
-Follow these guidelines when you create the Kubernetes cluster:
+For detailed cluster requirements, node configuration, IAM permissions, and storage class
+prerequisites specific to your cloud provider, see:
 
-1. Set the default size of the cluster based on the size of your data volumes.
-2. Configure one or more local storage volume that contain your data.
-   In AWS, for example, use the S3 service to create a bucket to store the data (like `ci-360-data-us-east-1`).
-   Then, create a folder in this bucket for logs (like `ci-360-data-us-east-1\logs`).
-3. For AWS, make sure that you include set permissions:
-   1. For the cluster's IAM role, Select the following policies:
-      * AmazonEKSBlockStoragePolicy
-      * AmazonEKSComputePolicy
-      * AmazonEKSLoadBalancingPolicy
-      * AmazonEKSNetworkingPolicy:
-   2. For the node's IAM role, select the following policies:
-      * AmazonEC2ContainerRegistryReadOnly
-      * AmazonEKS_CNI_Policy
-      * AmazonEKSWorkerNodePolicy
+- [AWS Infrastructure Requirements](./README-aws-infrastructure.md)
+- [Azure Infrastructure Requirements](./README-azure-infrastructure.md)
 
-### Configure Container Storage
+### Configure the Required Tools
 
-This storage location will be the base location that is used by the local agent. The application creates
-other subfolders as needed inside this base location.
+1. Verify that you have the required tools installed with the minimum supported versions:
 
-Follow these instructions based on your cloud-service provider:
+   | Tool | Minimum Version |
+   |------|-----------------|
+   | Helm | = 3.18.1 |
+   | kubectl | >= v1.27.0 |
+   | AWS CLI | >= 2.18.1 |
+   | Azure CLI | >= 2.83.0 |
 
-* **AWS:**
-  1. Create an S3 bucket. Name the bucket like this example:
-     `ci-360-data-<env>-<region> (e.g. ci-360-data-maila-us-east-1)`
-  2. (Recommended) Enable bucket versioning.
+2. If any of the required tools are not installed or are below the minimum version, use the `setup-prerequisites-tools.sh` script to install them:
 
-* **Azure:**
-  1. Create a storage account.
-  2. Create a blob container. Name the container like this example:
-     `maila`
-  3. (Recommended) Enable versioning.
+   1. Download the `setup-prerequisites-tools.sh` script from this location: [https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools](https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools)
 
-### Configure the Required Tools in the Cluster
-
-1. Sign in to your cloud-service provider.
-2. Open a shell console for your provider:
-   * AWS:
-      1. Sign in to your AWS account.
-      2. Enter `cloudshell` in the toolbar.
-      3. Select **CloudShell** to launch the service.
-   * Azure:
-      1. Sign in to your Azure account and select your project (for eexample, `ci360-fleets-iso`).
-      2. Go to **Settings** > **Resource Providers**.
-      3. Search for `cloudshell` and select **Microsoft CloudShell**.
-      4. If the Cloudshell service is not registered, click **Register** on the toolbar.
-      5. Click the CloudShell icon from the toolbar (next to the Copilot icon and search bar).
-   <!-- * GCP:
-      1. Sign into your GCP account and select your project (for eexample, `ci360-fleets-iso`).
-      2. Search for `CloudShell` in the search bar at the top of the page.
-      3. Launch **Cloud Shell Editor**.
-      4. After the editor opens, click **Open Terminal** from the toolbar. -->
-
-   **Note:** You can also use a local terminal, but you will need to configure direct access credentials.
-
-3. Install the prerequisites by using the `maila-bootstrap-tools.sh` script. This script installs the following tools:
-   * git
-   * helm
-   * kubectl
-   * python3
-
-   To run the script:
-   1. Download the `maila-bootstrap-tools.sh` script from this location: [https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools](https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools)
-   2. Upload  script to your cloud environment.
-      * AWS: Select **Actions** > **File upload** and follow the prompts.
-      * Azure: Click the **Upload Files** icon in the CloudShell toolbar and follow the prompts.
-      <!-- * GCP: From the toolbar's **More** menu (the three vertical dots), use the file upload option. -->
-   3. In the shell's terminal, change the permissions to make the script executable:
+   2. Change the permissions to make the script executable:
 
       ```sh
-      chmod +x maila-bootstrap-tools.sh
+      chmod +x setup-prerequisites-tools.sh
       ```
 
-   4. Run the script and verify that it completes successfully:
+   3. Run the script with the appropriate cloud provider option:
 
-      ```sh
-      ./maila-bootstrap-tools.sh
-      ```
+      * **To install all tools for AWS:**
+
+        ```sh
+        ./setup-prerequisites-tools.sh --cloud aws
+        ```
+
+      * **To install all tools for Azure:**
+
+        ```sh
+        ./setup-prerequisites-tools.sh --cloud azure
+        ```
+
+      * **To view all available options:**
+
+        ```sh
+        ./setup-prerequisites-tools.sh --help
+        ```
+
+   4. Verify that the script completes successfully and all tools are installed with the correct versions.
 
 ### Configure the Kubernetes Environment
 
-1. Connect to your Kubernetes cluster. In your cloud shell, run the following command:
+Run the following commands.
+
+> **NOTE:** These steps require you to be logged in to your cloud account (AWS or Azure CLI).
+
+1. Connect to your Kubernetes cluster.
 
    * **AWS:**
 
@@ -139,29 +111,59 @@ Follow these instructions based on your cloud-service provider:
      aws eks update-kubeconfig --name <cluster-name> --region <region>
      ```
 
-     For example: `aws eks update-kubeconfig --name my-cluster-us-east-1 --region us-east-1`
+     For example:
+
+     ```sh
+     aws eks update-kubeconfig --name ci360-dev-us-east-1 --region us-east-1
+     ```
 
    * **Azure:**
+
+     First, enable local accounts on the AKS cluster:
+
+     ```sh
+     az aks update -g <resource-group> -n <cluster-name> --enable-local-accounts
+     ```
+
+     For example:
+
+     ```sh
+     az aks update -g ci360-analytic-mai-rg -n ci360-analytic-mai-aks --enable-local-accounts
+     ```
+
+     Then, get the cluster credentials:
 
      ```sh
      az aks get-credentials --resource-group <resource-group> --name <cluster-name>
      ```
 
-     For example: `az aks get-credentials --resource-group my-cluster-rg --name ci360-dev-aks-eastus`
+     For example:
 
-2. Create a namespace by entering this command:
+     ```sh
+     az aks get-credentials --resource-group ci360-dev-rg --name ci360-dev-aks-eastus
+     ```
+
+2. Create a namespace:
 
    ```sh
-   kubectl create namespace <namespace>
+   kubectl create namespace <your-namespace>
    ```
 
-   For example: `kubectl create namespace myCluster-maila-prod`
+   For example:
 
-3. Create Kubernetes secrets for these values:
+   ```sh
+   kubectl create namespace ci360-marketinganalytic-test
+   ```
+
+3. Tag the namespace (recommended):
+
+   ```sh
+   kubectl label namespace <namespace> name=<namespace> --overwrite
+   ```
+
+4. Create Kubernetes secrets for these values:
     * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a>)
     * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a>)
-    * tokenUrl and finalUrl (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintapis&docsetTarget=n03m6gnoy5kfzen1dwbedgwkikhz.htm" target="_blank">Building the Base URL for the API Calls</a>)
-    * Environments credentials (it is recommended to set this through an existingSecret variable)
 
    Use a command like this example:
 
@@ -172,253 +174,241 @@ Follow these instructions based on your cloud-service provider:
      --from-literal=username=<the API user definition\'s user ID> \
      --from-literal=key=<the API user definition\'s secret> \
      --from-literal=password=<the API user definition\'s password> \
-     --from-literal=final-url=<value> \
-     --from-literal=token-url=<value> -n <namespace>
+     --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool> -n <namespace>
    ```
 
-4. Set up the Helm repo. Enter these commands:
+5. Set up the Helm repo. Enter these commands:
 
    ```sh
+   # Add the repo
    helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
+
+   # Update the repo
    helm repo update 
+
+   # Verify that the 'marketing-ai' chart is available
    helm search repo ci360-helm-charts/marketing-ai
    ```
 
-5. Set configuration values. Use a text editor to modify one of the following files:
-   * **AWS:** values-aws.yaml
-   * **Azure:** values-azure.yaml
+   To inspect the chart contents (optional), run:
+
+   ```sh
+   # Show the README for a specific chart version
+   helm show readme ci360-helm-charts/marketing-ai --version <CHART VERSION from step-3.a>
+
+   # Show the default values for a specific chart version
+   helm show values ci360-helm-charts/marketing-ai --version <CHART VERSION from step-3.a>
+
+   # Show the chart metadata for a specific chart version
+   helm show chart ci360-helm-charts/marketing-ai --version <CHART VERSION from step-3.a>
+   ```
+
+6. Set configuration values.
+
+   Download the `values-<cloud provider>.yaml` file from the following location and then edit it with a text editor:
+
+   * https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai
+
+   For example:
+   * **AWS:** `values-aws.yaml`
+   * **Azure:** `values-azure.yaml`
+
+   Update the values in this file by using the parameter names and sample values described in the table below  
+   (“The following table describes an example of variables and possible values”) as a reference for how to set each field for your environment.
   
-   ---
-   **Note:** When you set these values, make sure that you verify these items:
-     * the IAM role is correctly attached to the Kubernetes service account
-     * access to the S3 bucket or Azure blob is valid
    ---
 
    The following table describes an example of variables and possible values:
 
    <table role="table" style="width: 100%;">
-    <colgroup>
-        <col span="1" style="width: 20%;">
-        <col span="1" style="width: 50%;">
-        <col span="1">
-    </colgroup>
-    <thead style="background-color: #0766d1; font-weight: bold;">
-        <tr>
-            <th>Parameter</th>
-            <th>Sample Values for - AWS</th>
-            <th>Sample Values for - Azure</th>
-            <th>Description</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>
-                global.storagePrefix<br>
-                maiproxy.environment.MAI_INTERNAL_STORAGE_PREFIX
-            </td>
-            <td>s3</td>
-            <td>azure</td>
-            <td>This is used for storing Directed Acyclic Graphs (DAGs).</td>
-        </tr>
-        <tr>
-            <td>global.storageBucket<br>maiproxy.environment.MAI_INTERNAL_STORAGE_BUCKET</td>
-            <td>ci-360-data-local-agent</td>
-            <td>mai</td>
-            <td>This is used for storing DAGs in the container storage.<br><br>
-                <strong>Tip:</strong> Enable versioning for the bucket.
-            </td>
-        </tr>
-        <tr>
-            <td>global.azureStorage.connectionString</td>
-            <td>Not Applicable</td>
-            <td>DefaultEndpointsProtocol=https;AccountName=<em>&lt;blob bucket name&gt;</em>;AccountKey=<em>&lt;account
-                    key&gt;</em>;EndpointSuffix=core.windows.net</td>
-            <td>This is the connection string for Azure's blob storage.</td>
-        </tr>
-        <tr>
-            <td>airflow.config.logging.remote_base_log_folder</td>
-            <td>s3://<em>&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;</em>/mai/logs/local-agent<br>
-                <br>For example:
-                <pre>s3://ci-360-data-local-agent/mai/logs/local-agent</pre>
-                </li>
-            </td>
-            <td>wasb://airflow-logs@<em>&lt;blob bucket name&gt;</em>.blob.core.windows.net/logs</td>
-            </td>
-            <td>This is used to push logs to the log folder.</td>
-        </tr>
-        <tr>
-            <td>Change Image info:
-                <ul>
-                    <li>Registry</li>
-                    <li>Repository</li>
-                </ul>
-            </td>
-            <td>
-                <ul>
-                    <li>Registry: <em> &lt;AWS account ID&gt;</em>.dkr.ecr.<em>&lt;ECR repository
-                            region&gt;</em>.amazonaws.com</li>
-                    <li>Repository: <em>&lt;Repository name&gt;</em><br>For example:
-                        <pre>ci360-Images-Repository</pre>
-                    </li>
-                </ul>
-            </td>
-            <td>
-                <ul>
-                    <li>Registry: <em>&lt;AWS account ID&gt;</em>.dkr.ecr.<em>&lt;ECR repository
-                            region&gt;</em>.amazonaws.com
-                    </li>
-                    <li>Repository: <em>&lt;Repository name&gt;</em><br>For example:
-                        <pre>ci360-Images-Repository</pre>
-                    </li>
-                </ul>
-            </td>
-            <td>
-                <br>
-        </tr>
-        <tr>
-            <td>
-                <ul>
-                    <li>serviceAccount.annotations</li>
-                </ul>
-            </td>
-            <td>
-                <ul>
-                    <li>eks.amazonaws.com/role-arn: "arn:aws:iam::&lt;AWS account ID&gt;:role/<em>&lt;cluster role
-                            name&gt;</em>"</li>
-                </ul>
-            </td>
-            <td>azure.workload.identity/client-id: <em>&lt;Azure client Id&gt;</em><br>
-                For example:
-                <pre>azure.workload.identity/client-id: edb592b9-5adb-4ea4-a587-e5a56feef85b</pre>
-            </td>
-            <td>Enables access to cloud services</td>
-        </tr>
-        <tr>
-            <td>
-                workers.persistence.storageClassName<br>
-                triggerer.persistence.storageClassName<br>
-                redis.persistence.storageClassName<br>
-                postgresql-ha.persistence.storageClassName
-            </td>
-            <td>gp2</td>
-            <td>managed-csi</td>
-            <td>Used for PVC creation, which acts as a hard disk inside Kubernetes</td>
-        </tr>
-        <tr>
-            <td>ci360-satellite.dags.storageClassName</td>
-            <td>efc-sc</td>
-            <td>azurefile-csi</td>
-            <td>Used for sharing DAGs to different pods</td>
-        </tr>
-        <tr>
-            <td>fleets.existingSecret</td>
-            <td>fleet-credentials</td>
-            <td>fleet-credentials</td>
-            <td>Secret name that is used to connect to the Environments service.</td>
-        </tr>
-        <tr>
-            <td>fleets.usernamefleets.key</td>
-            <td>
-                <ul>
-                    <li>username: "API-<api user name>"</li>
-                    <li>password: "1CC7FEA244584BAB937F59"</li>
-                </ul>
-            </td>
-            <td>
-                <ul>
-                    <li>username: "API-<api user name>"</li>
-                    <li>password: "1CC7FEA244584BAB937F59"</li>
-                </ul>
-            </td>
-            <td>Specify these credentials only if the credentials are not set through the fleets.existingSecret value.
-            </td>
-        </tr>
-        <tr>
-            <td>fleets.tenantfleets.hostName</td>
-            <td>maitecmafleetsapigw-master.cidev.sas.us</td>
-            <td>maitecmafleetsapigw-master.cidev.sas.us</td>
-            <td></td>
-        </tr>
-    </tbody>
+     <colgroup>
+       <col span="1" style="width: 20%;">
+       <col span="1" style="width: 40%;">
+       <col span="1" style="width: 40%;">
+     </colgroup>
+     <thead style="background-color: #0766d1; font-weight: bold;">
+       <tr>
+         <th>Parameter</th>
+         <th>Sample values for - AWS</th>
+         <th>Sample values for - Azure</th>
+         <th>Description</th>
+       </tr>
+     </thead>
+     <tbody>
+       <tr>
+         <td>_agentpool</td>
+         <td>Not Applicable</td>
+         <td>agentpool</td>
+         <td></td>
+       </tr>
+       <tr>
+         <td>_connectionString</td>
+         <td>Not Applicable</td>
+         <td>DefaultEndpointsProtocol=https;AccountName=&lt;blob bucket name&gt;;AccountKey=&lt;account key&gt;;EndpointSuffix=core.windows.net</td>
+         <td>This is the connection string for Azure blob storage.</td>
+       </tr>
+       <tr>
+         <td>_dagsStorageClassName</td>
+         <td>efc-sc</td>
+         <td>azurefile-csi</td>
+         <td>Used for sharing DAGs across different pods.</td>
+       </tr>
+       <tr>
+         <td>_externalGatewayHost</td>
+         <td>extapigwservice-dev.cidev.sas.us</td>
+         <td>extapigwservice-dev.cidev.sas.us</td>
+         <td>You can find this value by logging into the CI360 application as admin and navigating to <strong>General settings → Access Points</strong>.</td>
+       </tr>
+       <tr>
+         <td>_k8sAuthSecretName</td>
+         <td>Secret name used in section 1.5</td>
+         <td>Secret name used in section 1.5</td>
+         <td></td>
+       </tr>
+       <tr>
+         <td>_remoteBaseLogFolder</td>
+         <td>
+           s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent
+           <br><br>
+           For example:<br>
+           <code>s3://ci-360-data-local-agent/mai/logs/local-agent</code>
+         </td>
+         <td>wasb://airflow-logs@&lt;blob bucket name&gt;.blob.core.windows.net/logs</td>
+         <td>Used to push logs to the log folder.</td>
+       </tr>
+       <tr>
+         <td>_s3BucketName</td>
+         <td>ci-360-data-local-agent</td>
+         <td>Not Applicable</td>
+         <td>Used for storing DAGs in an S3 bucket or Azure blob.</td>
+       </tr>
+       <tr>
+         <td>_serviceRole</td>
+         <td>Application service role ARN</td>
+         <td>Not Applicable</td>
+         <td>Enables access to cloud services.</td>
+       </tr>
+       <tr>
+         <td>_storageClassName</td>
+         <td>gp2</td>
+         <td>managed-csi</td>
+         <td>Used for PVC creation, which acts as a hard disk inside Kubernetes.</td>
+       </tr>
+       <tr>
+         <td>_workloadIdentityClientId</td>
+         <td>Not Applicable</td>
+         <td>
+           &lt;Azure client ID&gt;<br><br>
+           For example:<br>
+           <code>edb592b9-5adb-4ea4-a587-e5a56feef85b</code>
+         </td>
+         <td>Enables access to cloud services.</td>
+       </tr>
+       <tr>
+         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT<br>login<br>password</td>
+         <td>Not Applicable</td>
+         <td>
+           login: &lt;input-storage-account-name-here&gt;<br>
+           password: &lt;input-storage-account-key-here&gt;
+         </td>
+         <td>Used to create the Airflow default connection for Azure.</td>
+       </tr>
+       <tr>
+         <td>fleets.existingSecret</td>
+         <td>fleet-credentials</td>
+         <td>fleet-credentials</td>
+         <td>Secret name used in step 1.5.</td>
+       </tr>
+       <tr>
+         <td>global.fleets.hostName</td>
+         <td>E.g. fleetsapigw-demo.cidemo.sas.com</td>
+         <td>E.g. fleetsapigw-demo.cidemo.sas.com</td>
+         <td>The fleet external API gateway value provided by SAS as in step 1.1.</td>
+       </tr>
+       <tr>
+         <td>global.fleets.tenant</td>
+         <td>Tenant moniker for the tenant created on the CI360 side.</td>
+         <td>Tenant moniker for the tenant created on the CI360 side.</td>
+         <td></td>
+       </tr>
+     </tbody>
    </table>
 
 ### Validate Prerequisite Configuration
 
-After you complete the prerequisite steps, run the `maila-validate-configuration.sh` script to validate your configuration.
-Do not proceed with deployment until there are no errors.
+Once the prerequisite steps are complete, run the validation tool to verify your configuration. **Do not proceed with deployment until all errors are resolved.**
 
-1. Download the `maila-validate-configuration.sh` script from this location: [https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools](https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools)
+1. Download the prerequisite validation script from this location:  
+   [https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai](https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai)  
+   (file name: `validate-configuration.sh`)
 
-2. Upload  script to your cloud environment.
-      * AWS: Select **Actions** > **File upload** and follow the prompts.
-      * Azure: Click the **Upload Files** icon in the CloudShell toolbar and follow the prompts.
-      <!-- * GCP: From the toolbar's **More** menu (the three vertical dots), use the file upload option. -->
+2. Upload the script to your environment if needed (for example, to your Kubernetes admin node or jump host).
 
-3. In the shell's terminal, change the permissions to make the script executable:
+3. In the terminal, change the permissions to make the script executable:
 
    ```sh
-   chmod +x maila-validate-configuration.sh
+   chmod +x validate-configuration.sh
    ```
 
-4. In the console, run the script with one of these commends:
-   * **AWS:**
+4. Run the prerequisite validation script. Example usage:
 
    ```sh
-   ./maila-validate-configuration.sh --cloud aws --values ../local-agent/values-aws.yaml --namespace <Kubernetes namespace>
-   ```
-
-   * **Azure:**
-
-   ```sh
-   ./maila-validate-configuration.sh --values ../local-agent/values-azure.yaml --namespace <Kubernetes namespace>
-   ```
-
-### Deploy the Local Agent
-
-1. Update the Helm dependencies:
-
-   ```sh
-   helm dependency update
-   ```
-
-2. Install the Prometheus Custom Resource Definition (CRD):
-
-   ```sh
-   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-   ```
-
-3. Deploy the local agent through Helm:
-
-   ```sh
-   helm upgrade --install <release-name> . --namespace <your-namespace> --values values.yaml --timeout 15m
+   ./validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace from step-1.4>
    ```
 
    For example:
 
    ```sh
-   helm upgrade --install ci360-analytic-mai . --namespace agent-maitecma --create-namespace --values values-aws.yaml --timeout 20m
+   ./validate-configuration.sh --cloud aws --values ./values-aws.yaml --namespace ci360-marketinganalytic-test
    ```
 
-   **Note:** Make sure that the release name matches the patter that you used for the service account.
+   or
+
+   ```sh
+   ./validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace ci360-marketinganalytic-test
+   ```
+
+### Deploy the Local Agent
+
+Deploy the local agent through Helm:
+
+```sh
+helm upgrade --install <release name> ci360-helm-charts/marketing-ai \
+  --version <CHART VERSION from section 1.6.3.a> \
+  --namespace <namespace created in section 1.4> \
+  --values <values.yaml> \
+  --timeout 15m
+```
+
+For example:
+
+```sh
+helm upgrade --install ci360-analytic-mai ci360-helm-charts/marketing-ai \
+  --version 0.0.46 \
+  --namespace ci360-marketinganalytic-test \
+  --values ./values-azure.yaml \
+  --timeout 15m
+```
+
+After the Helm install/upgrade completes:
+
+1. **Temporary Airflow bootstrap step**  
+   Apply the temporary settings as mentioned in [Configure Airflow](#configure-airflow).  
+
+> **NOTE**
+>
+> * The release name should match the service account naming pattern.
+> * For **AWS**, an example is provided in the *IAM Role for Application* section.
+> * For **Azure**, ensure the Kubernetes service account is annotated with the Azure Workload Identity client ID:  
+>   `azure.workload.identity/client-id=<workload-identity-client-id>`.
 
 ### Configure Airflow
 
 Airflow enables you to programmatically author, schedule, and monitor workflows. For more information, see
 [Apache Airflow](https://github.com/apache/airflow). Airflow is installed as part of the Helm deployment process.
 
-Follow these steps to configure an Airflow connection for the `local-agent`:
-
-1. Create a default Airflow connection:
-   1. Open the Airflow UI from the Airflow API server.
-   2. Navigate to **Connections**.
-   3. Click **Create** to add a new connection.
-   4. Complete these fields:
-      * **Connection ID**: `aws_default`
-      * **Connection Type**: `Amazon Web Services`
-   5. Leave the default values for the other fields and click **Save**.
-
-2. Create an Airflow variable named "partition_config":
-   1. From the Airflow UI, navigate to **Admin > Variables**.
+1. Create an Airflow variable named "partition_config":
+   1. From the Airflow UI, navigate to **Admin > Variables**. [Admin password is set in values-<cloud>.yaml used while deployment as value of 'global.simpleAuthPassword']
    2. Click **Create** to add a new variable.
    3. Complete these fields:
       * **Key**: `partition_config`
@@ -426,14 +416,14 @@ Follow these steps to configure an Airflow connection for the `local-agent`:
 
         ```json
         {
-          "partition_extract": 1,
-          "partition_size": 100000,
-          "partition_summary": 0,
-          "use_estimated_size": 0,
-          "sample_size": 100,
-          "row_size_buffer": 3.0,
-          "task_memory_buffer_gb": 1.0,
-          "cardinality_factor": 10
+            "partition_extract": 1,
+            "partition_size": 100000,
+            "partition_summary": 0,
+            "use_estimated_size": 1,
+            "sample_size": 100,
+            "row_size_buffer": 3.0,
+            "task_memory_buffer_gb": 1.0,
+            "cardinality_factor": 35
         }
         ```
 
@@ -464,10 +454,6 @@ Verify that all of these items are true:
 
 * All pods are in the running state.
 * There are no CrashLoopBackOff errors.
-* Logs are written to S3 or Azure blob storage.
-* Airflow connections are functional.
-* DAGs are visible in the Airflow user interface.
-* Connectivity is confirmed to the Fleets gateway.
 
 <!--
 ### New CI360 customer
