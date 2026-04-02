@@ -111,7 +111,8 @@ MIN_AZURE_CLI_VERSION="2.83.0"
 
 # Pinned versions for installation (>= minimum)
 KUBECTL_VERSION="v1.33.0"
-HELM_VERSION="v3.18.1"
+HELM_REQUIRED_VERSION="3.18.1"
+HELM_VERSION="${HELM_REQUIRED_VERSION}"
 AWS_CLI_VERSION="2.18.1"
 AZURE_CLI_VERSION="2.83.0"
 
@@ -158,17 +159,18 @@ Options:
   --retries <n>               Number of retry attempts (default: 3)
   --retry-delay <s>           Delay between retries in seconds (default: 3)
   --kubectl-version <version> Specific kubectl version (default: ${KUBECTL_VERSION})
-  --helm-version <version>    Specific helm version (default: ${HELM_VERSION})
+  --helm-version <version>    Specific helm version — NOTE: only v${HELM_REQUIRED_VERSION} is supported.
+                              Auto-install is disabled; script will verify only.
 
 Minimum Required Versions:
   kubectl:    >= v${MIN_KUBECTL_VERSION}
-  helm:       >= v${MIN_HELM_VERSION}
+  helm:       == v${HELM_REQUIRED_VERSION}  (exact match required — no auto-install)
   aws-cli:    >= ${MIN_AWS_CLI_VERSION} (AWS only)
   azure-cli:  >= ${MIN_AZURE_CLI_VERSION} (Azure only)
 
 Pinned Installation Versions:
   kubectl:    ${KUBECTL_VERSION}
-  helm:       ${HELM_VERSION}
+  helm:       ${HELM_REQUIRED_VERSION}  (verify only — install manually if mismatched)
   aws-cli:    ${AWS_CLI_VERSION}
   azure-cli:  ${AZURE_CLI_VERSION}
 
@@ -297,7 +299,12 @@ parse_args() {
           echo "[ERROR] --helm-version requires a version argument (e.g., v3.18.1)"
           exit 2
         fi
-        HELM_VERSION="$2"
+        # Helm version cannot be changed — only HELM_REQUIRED_VERSION is supported
+        if [[ "${2#v}" != "$HELM_REQUIRED_VERSION" ]]; then
+          echo "[ERROR] helm auto-install is disabled. Only v${HELM_REQUIRED_VERSION} is supported."
+          echo "        Please install helm v${HELM_REQUIRED_VERSION} manually before running this script."
+          exit 2
+        fi
         shift 2
         ;;
       -*)
@@ -590,60 +597,58 @@ install_kubectl() {
   log_success "kubectl ${KUBECTL_VERSION} installed to ${INSTALL_DIR}/kubectl"
 }
 
-install_helm() {
-  log_info "Installing helm ${HELM_VERSION} (minimum: v${MIN_HELM_VERSION})..."
-  
+# Helm is NOT installed by this script.
+# Only verifies the installed version matches exactly v3.18.1
+verify_helm_version() {
   if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install helm ${HELM_VERSION} to ${INSTALL_DIR}/helm"
+    log_dry_run "Would verify helm == v${HELM_REQUIRED_VERSION}"
     return 0
   fi
-  
-  # Validate requested version meets minimum
-  local requested_ver="${HELM_VERSION#v}"
-  if ! version_gte "$requested_ver" "$MIN_HELM_VERSION"; then
-    log_error "Requested helm version ${HELM_VERSION} is below minimum v${MIN_HELM_VERSION}"
+
+  if ! command_exists helm; then
+    log_error "helm is NOT installed."
+    log_error "Please install helm v${HELM_REQUIRED_VERSION} manually:"
+    log_error ""
+    log_error "  Linux/macOS:"
+    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-amd64.tar.gz | tar -xz"
+    log_error "    mv linux-amd64/helm /usr/local/bin/helm"
+    log_error ""
+    log_error "  macOS (Homebrew):"
+    log_error "    brew install helm@${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Windows (Chocolatey):"
+    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Official docs: https://helm.sh/docs/intro/install/"
     return 1
   fi
-  
-  local tarball="helm-${HELM_VERSION}-linux-amd64.tar.gz"
-  local download_url="https://get.helm.sh/${tarball}"
-  
-  log_info "Downloading helm ${HELM_VERSION}..."
-  retry curl -fsSL "$download_url" -o "/tmp/${tarball}"
-  
-  # Verify download succeeded
-  if [[ ! -f "/tmp/${tarball}" ]]; then
-    log_error "Failed to download helm tarball"
+
+  local installed_ver
+  installed_ver=$(get_tool_version helm)
+
+  if [[ "$installed_ver" == "$HELM_REQUIRED_VERSION" ]]; then
+    log_success "helm version verified: v${installed_ver} (required: v${HELM_REQUIRED_VERSION} ✓)"
+    return 0
+  else
+    log_error "helm version mismatch!"
+    log_error "  Installed : v${installed_ver}"
+    log_error "  Required  : v${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "Please install the exact required version manually:"
+    log_error ""
+    log_error "  Linux/macOS:"
+    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-amd64.tar.gz | tar -xz"
+    log_error "    sudo mv linux-amd64/helm /usr/local/bin/helm"
+    log_error ""
+    log_error "  macOS (Homebrew):"
+    log_error "    brew unlink helm && brew install helm@${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Windows (Chocolatey):"
+    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Official docs: https://helm.sh/docs/intro/install/"
     return 1
   fi
-  
-  # Extract and install
-  log_info "Extracting helm..."
-  tar -xzf "/tmp/${tarball}" -C /tmp
-  
-  if [[ ! -f "/tmp/linux-amd64/helm" ]]; then
-    log_error "Failed to extract helm binary"
-    return 1
-  fi
-  
-  mv /tmp/linux-amd64/helm "${INSTALL_DIR}/helm"
-  chmod +x "${INSTALL_DIR}/helm"
-  
-  # Cleanup
-  rm -rf /tmp/linux-amd64 "/tmp/${tarball}"
-  
-  # Verify the binary exists and works
-  if [[ ! -x "${INSTALL_DIR}/helm" ]]; then
-    log_error "helm binary not found at ${INSTALL_DIR}/helm"
-    return 1
-  fi
-  
-  if ! "${INSTALL_DIR}/helm" version --short &>/dev/null; then
-    log_error "helm binary verification failed"
-    return 1
-  fi
-  
-  log_success "helm ${HELM_VERSION} installed to ${INSTALL_DIR}/helm"
 }
 
 install_aws_cli() {
@@ -924,13 +929,13 @@ print_summary() {
   if [[ "$DRY_RUN" == true ]]; then
     echo "Mode: DRY-RUN (no changes made)"
     echo ""
-    echo "Would install:"
-    echo "  - kubectl   ${KUBECTL_VERSION} (min: v${MIN_KUBECTL_VERSION})"
-    echo "  - helm      ${HELM_VERSION} (min: v${MIN_HELM_VERSION})"
+    echo "Would install/verify:"
+    echo "  - kubectl   ${KUBECTL_VERSION}           (min: v${MIN_KUBECTL_VERSION})"
+    echo "  - helm      v${HELM_REQUIRED_VERSION}    (verify only — exact match required)"
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
-      echo "  - aws-cli   (min: ${MIN_AWS_CLI_VERSION})"
+      echo "  - aws-cli   ${AWS_CLI_VERSION}          (min: ${MIN_AWS_CLI_VERSION})"
     elif [[ "$CLOUD_PROVIDER" == "azure" ]]; then
-      echo "  - azure-cli (min: ${MIN_AZURE_CLI_VERSION})"
+      echo "  - azure-cli ${AZURE_CLI_VERSION}        (min: ${MIN_AZURE_CLI_VERSION})"
     fi
   else
     # Section 1: Minimum Required Versions
@@ -938,7 +943,7 @@ print_summary() {
     echo "│ Minimum Required Versions                                   │"
     echo "├─────────────────────────────────────────────────────────────┤"
     printf "│  %-12s >= v%-41s │\n" "kubectl:" "${MIN_KUBECTL_VERSION}"
-    printf "│  %-12s >= v%-41s │\n" "helm:" "${MIN_HELM_VERSION}"
+    printf "│  %-12s = v%-41s │\n" "helm:" "${MIN_HELM_VERSION}"
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
       printf "│  %-12s >= %-42s │\n" "aws-cli:" "${MIN_AWS_CLI_VERSION}"
     elif [[ "$CLOUD_PROVIDER" == "azure" ]]; then
@@ -1037,8 +1042,16 @@ print_summary() {
     }
     
     print_tool_status "kubectl" "$MIN_KUBECTL_VERSION"
-    print_tool_status "helm" "$MIN_HELM_VERSION"
-    
+    local helm_ver
+    helm_ver=$(get_tool_version helm)
+    if command_exists helm && [[ "$helm_ver" == "$HELM_REQUIRED_VERSION" ]]; then
+      printf "│  ✓ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(exact match required)"
+    elif command_exists helm; then
+      printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(REQUIRED: v${HELM_REQUIRED_VERSION})"
+    else
+      printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "---" "(NOT INSTALLED)"
+    fi
+
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
       print_tool_status "aws-cli" "$MIN_AWS_CLI_VERSION"
     elif [[ "$CLOUD_PROVIDER" == "azure" ]]; then
@@ -1112,7 +1125,7 @@ main() {
     
     log_info "Cloud provider: $CLOUD_PROVIDER"
     log_info "Detected package manager: $PKG_MANAGER"
-    log_info "Pinned versions: kubectl=${KUBECTL_VERSION}, helm=${HELM_VERSION}"
+    log_info "Pinned versions: kubectl=${KUBECTL_VERSION}, helm=${HELM_REQUIRED_VERSION} (verify only)"
     echo ""
   fi
   
@@ -1140,19 +1153,14 @@ main() {
     log_info "kubectl already meets minimum version (use --force to reinstall)"
   fi
   verify_tool kubectl "$MIN_KUBECTL_VERSION" || true
-  
-  # Install helm
-  if should_install helm "$MIN_HELM_VERSION"; then
-    if install_helm; then
-      track_install "helm" "installed" "new/upgraded"
-    else
-      track_install "helm" "failed" "installation error"
-    fi
+
+  # Helm — verify only, do NOT install
+  log_info "Verifying helm version (required: v${HELM_REQUIRED_VERSION}, no auto-install)..."
+  if verify_helm_version; then
+    track_install "helm" "skipped" "verified"
   else
-    track_install "helm" "skipped" "meets minimum"
-    log_info "helm already meets minimum version (use --force to reinstall)"
+    track_install "helm" "failed" "version mismatch or not installed"
   fi
-  verify_tool helm "$MIN_HELM_VERSION" || true
   
   # Install cloud-specific CLI
   case "$CLOUD_PROVIDER" in
