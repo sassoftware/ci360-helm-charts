@@ -804,7 +804,7 @@ if [[ "$SKIP_K8S" == false ]]; then
       fi
 
     else
-      log_info "Namespace '${NAMESPACE}' does not exist yet — will be created during deployment"
+      log_fail "Namespace '${NAMESPACE}' does not exist — create it and re-run this validation script before deploying."
     fi
   else
     log_info "No --namespace specified — skipping namespace checks"
@@ -828,7 +828,7 @@ echo -e "  Failures     : ${RED}${BOLD}${ERRORS}${NC}"
 echo ""
 
 if [[ "$ERRORS" -gt 0 ]]; then
-  echo -e "  ${RED}${BOLD}❌  CONFIGURATION VALIDATION FAILED — fix ${ERRORS} error(s) before deploying.${NC}\n"
+  echo -e "  ${RED}${BOLD}❌  CONFIGURATION VALIDATION FAILED — fix ${ERRORS} error(s), then re-run this script before deploying.${NC}\n"
   exit 1
 elif [[ "$WARNINGS" -gt 0 ]]; then
   echo -e "  ${YELLOW}${BOLD}⚠️  VALIDATION PASSED WITH ${WARNINGS} WARNING(S) — review before deploying.${NC}\n"
