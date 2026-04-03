@@ -164,6 +164,7 @@ Run the following commands.
 4. Create Kubernetes secrets for these values:
     * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a>)
     * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a>)
+      * Make sure to use the following naming convention for API user <i>"API-<tenant_moniker>-mai-<user_id>"</i>.
 
    Use a command like this example:
 
