@@ -388,7 +388,8 @@ helm upgrade --install <release name> ci360-helm-charts/marketing-ai \
   --version <CHART VERSION from section 1.6.3.a> \
   --namespace <namespace created in section 1.4> \
   --values <values.yaml> \
-  --timeout 15m
+  --timeout 15m \
+  --atomic
 ```
 
 For example:
@@ -398,7 +399,8 @@ helm upgrade --install ci360-analytic-mai ci360-helm-charts/marketing-ai \
   --version 0.0.46 \
   --namespace ci360-marketinganalytic-test \
   --values ./values-azure.yaml \
-  --timeout 15m
+  --timeout 15m \
+  --atomic
 ```
 
 After the Helm install/upgrade completes:
