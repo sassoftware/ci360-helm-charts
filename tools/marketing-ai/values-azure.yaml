@@ -7,32 +7,30 @@ _dagsStorageClassName: &dagsStorageClassName "azurefile-csi"
 _ecrJobImage: &ecrJobImage "python:3.9-alpine"
 _externalGatewayHost: &externalGatewayHost "extapigwservice-demo.cidemo.sas.com"
 _k8sAuthSecretName: &k8s_auth_secret_name "ci360-api-credentials"
-_connectionString: &azureConnectionString "<input-azure-storage-connection-string-here>"
+_storageAccountName: &storageAccountName "<input-storage-account-name-here>"
 _workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
 _agentpool: &agentpool "agentpool"
 _remoteBaseLogFolder: &remoteBaseLogFolder "wasb://airflow-logs@<blob bucket name>.blob.core.windows.net/logs"
 
 # =========================
-# =========================
-
 global:
   ExternalGatewayHost: *externalGatewayHost
+  workloadIdentityClientId: *workloadIdentityClientId
   storagePrefix: azure
   k8s_auth_secret_name: *k8s_auth_secret_name
   ecr_job_image: *ecrJobImage
   storageBucket: "mai"
-  azureStorage:
-    connectionString: *azureConnectionString
+  storageAccountName: *storageAccountName
   # Fleets connection settings - automatically passed to all subcharts
   fleets:
     # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
-    mode: "gateway"
+    mode: "direct"
     # Fleets gateway hostname (used when mode = "gateway")
     hostName: ""
     # Tenant moniker passed in WebSocket connection URL
     tenant: "not_set"
     # Direct host name
-    directHost: ""
+    directHost: "ci360-mai-comm-gateway.master-eks.cidev.sas.us"
   simpleAuthSecret: airflow-simple-auth-passwords
   simpleAuthPassword: "admin"
 
@@ -50,14 +48,16 @@ airflow:
       value: "{{ .Values.global.storageBucket }}"
     - name: AIRFLOW__CELERY__OPERATION_TIMEOUT
       value: '20'
-    - name: AZURE_STORAGE_CONNECTION_STRING
-      value: "{{ .Values.global.azureStorage.connectionString }}"
+    - name: AZURE_STORAGE_ACCOUNT_NAME
+      value: "{{ .Values.global.storageAccountName }}"
+    - name: AZURE_CLIENT_ID
+      value: "{{ .Values.global.workloadIdentityClientId }}"
     - name: AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER
       value: "wasb-airflow-logs"
     - name: AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID
       value: "wasb_default"
     - name: AIRFLOW_CONN_WASB_DEFAULT
-      value: '{"conn_type": "wasb", "login": "<input-storage-account-name-here>", "password": "<input-storage-account-key-here>"}'
+      value: '{"conn_type": "wasb", "host": "{{ .Values.global.storageAccountName }}.blob.core.windows.net"}'
 
   config:
     logging:
@@ -70,7 +70,7 @@ airflow:
     serviceAccount:
       annotations:
         azure.workload.identity/client-id: *workloadIdentityClientId
-      
+
   workers:
     serviceAccount:
       annotations:
@@ -79,6 +79,9 @@ airflow:
       storageClassName: *storageClassName
 
   triggerer:
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: *workloadIdentityClientId
     persistence:
       storageClassName: *storageClassName
 
@@ -88,11 +91,11 @@ airflow:
 
   airflowPodAnnotations:
     azure.workload.identity/use: "true"
-  
+
   labels:
     app.kubernetes.io/managed-by: "Helm"
     azure.workload.identity/use: "true"
-  
+
   nodeSelector:
     agentpool: *agentpool
 
@@ -105,25 +108,25 @@ postgresql-ha:
       agentpool: *agentpool
   persistence:
     storageClass: *storageClassName
-    
+
 ci360-satellite:
   dags:
     persistence:
       storageClassName: *dagsStorageClassName
-  
+
   maiproxy:
     nodeSelector:
       karpenter.sh/capacity-type: null
       agentpool: *agentpool
     environment:
       MAI_INTERNAL_STORAGE_PREFIX: azure
-      MAI_INTERNAL_STORAGE_BUCKET: mai #use from global values, or use anchors.
-  
+      MAI_INTERNAL_STORAGE_BUCKET: mai  # use from global values, or use anchors.
+
   maiorchestra:
     nodeSelector:
       agentpool: *agentpool
       karpenter.sh/capacity-type: null
-  
+
   serviceAccount:
     annotations:
       azure.workload.identity/client-id: *workloadIdentityClientId
@@ -148,12 +151,12 @@ redis:
 #       Connection settings (mode, hostName, directHost, tenant) are in global.fleets above
 fleets:
   # Authentication credentials
-  # Option 1 (RECOMMENDED for production): 
+  # Option 1 (RECOMMENDED for production):
   # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
   existingSecret: ""
-  
+
   # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
   # These are ignored if existingSecret is set
-  username: ""
-  key: ""
-  keepHook: true
+  username: "API-maaitbma-sinmaj"
+  password: "28A9B97A472646349FA398"
+  key: "28A9B97A472646349FA398"  # deprecated: use 'password' instead
