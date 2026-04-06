@@ -30,7 +30,7 @@ global:
     # Tenant moniker passed in WebSocket connection URL
     tenant: "not_set"
     # Direct host name
-    directHost: "ci360-mai-comm-gateway.master-eks.cidev.sas.us"
+    directHost: ""
   simpleAuthSecret: airflow-simple-auth-passwords
   simpleAuthPassword: "admin"
 
