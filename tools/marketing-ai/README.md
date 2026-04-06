@@ -265,12 +265,7 @@ Run the following commands.
        </tr>
        <tr>
          <td>_remoteBaseLogFolder</td>
-         <td>
-           s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent
-           <br><br>
-           For example:<br>
-           <code>s3://ci-360-data-local-agent/mai/logs/local-agent</code>
-         </td>
+         <td>s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent</td>
          <td>wasb://airflow-logs@&lt;blob bucket name&gt;.blob.core.windows.net/logs</td>
          <td>Used to push logs to the log folder.</td>
        </tr>
@@ -457,21 +452,30 @@ Airflow enables you to programmatically author, schedule, and monitor workflows.
 1. Run the Helm tests by entering this command:
 
    ```sh
-   helm test <release-name> --namespace <your namespace> --logs --timeout 20m &
+   helm test <release-name> --namespace <your namespace> --timeout 20m &
    ```
 
    For example:
 
    ```sh
-   helm test ci360-analytic-mai --namespace my-namespace-1 --logs --timeout 20m &
+   helm test ci360-analytic-mai --namespace my-namespace-1 --timeout 20m &
    ```
 
-2. Inspect the logs for errors, and repeat the previous steps (if necessary) until the deployment is successful. To inspect the logs, you can
-   use a command like this example:
-
-   ```sh
-   kubectl logs -n <namespace> -l job-name=<job name> -f
-   ```
+> **Note:** While the above Job is in progress, inspect the logs for errors, and repeat the previous steps (if necessary) until the deployment is successful.
+> 
+> To inspect the Job logs, run:
+> 
+> ```sh
+> kubectl logs -n <namespace> -l job-name=<job-name> -f
+> ```
+> 
+> For example:
+> 
+> ```sh
+> kubectl logs -n my-namespace-1 -l job-name=local-agent-test-job -f
+> ```
+> 
+> The `-f` option follows the logs in real time until you interrupt it (Ctrl+C).
 
 Verify that all of these items are true:
 
