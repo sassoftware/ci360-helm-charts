@@ -5,11 +5,11 @@
 _storageClassName: &storageClassName "gp2"
 _dagsStorageClassName: &dagsStorageClassName "efs-sc"
 _ecrJobImage: &ecrJobImage "python:3.9-alpine"
-_externalGatewayHost: &externalGatewayHost "extapigwservice-dev.cidev.sas.us"
-_k8sAuthSecretName: &k8s_auth_secret_name "ci360-api-credentials"
-_serviceRole: &serviceRole "arn:aws:iam::952478859445:role/sanasa-local-agent"
-_s3BucketName: &s3BucketName "ci-360-data-dev-us-east-1"
-_remoteBaseLogFolder: &remoteBaseLogFolder "s3://ci-360-data-dev-us-east-1/mai/logs/ci360-master-us-east-1"
+_externalGatewayHost: &externalGatewayHost "<external gateway host>"
+_k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
+_serviceRole: &serviceRole "<arn for defined application service role during cluster creation>"
+_s3BucketName: &s3BucketName "<configured bucket name>"
+_remoteBaseLogFolder: &remoteBaseLogFolder "s3://<configured bucket name>/mai/logs/<user defined name>"
 
 # =========================
 # =========================
@@ -105,7 +105,7 @@ fleets:
   # Authentication credentials
   # Option 1 (RECOMMENDED for production): 
   # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
-  existingSecret: ""
+  existingSecret: *k8s_auth_secret_name
   
   # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
   # These are ignored if existingSecret is set
