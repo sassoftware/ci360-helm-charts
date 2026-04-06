@@ -5,8 +5,8 @@
 _storageClassName : &storageClassName "managed-csi"
 _dagsStorageClassName: &dagsStorageClassName "azurefile-csi"
 _ecrJobImage: &ecrJobImage "python:3.9-alpine"
-_externalGatewayHost: &externalGatewayHost "extapigwservice-demo.cidemo.sas.com"
-_k8sAuthSecretName: &k8s_auth_secret_name "ci360-api-credentials"
+_externalGatewayHost: &externalGatewayHost "<external gateway host>"
+_k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
 _storageAccountName: &storageAccountName "<input-storage-account-name-here>"
 _workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
 _agentpool: &agentpool "agentpool"
@@ -153,7 +153,7 @@ fleets:
   # Authentication credentials
   # Option 1 (RECOMMENDED for production):
   # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
-  existingSecret: ""
+  existingSecret: *k8s_auth_secret_name
 
   # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
   # These are ignored if existingSecret is set
