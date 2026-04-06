@@ -54,10 +54,33 @@ prerequisites specific to your cloud provider, see:
 - [AWS Infrastructure Requirements](./README-aws-infrastructure.md)
 - [Azure Infrastructure Requirements](./README-azure-infrastructure.md)
 
+### Collect The Required Deployment Information
+As per the cloud provider on which the deployment will be done, please collect the information for attributes mentioned in **Point-6** of [Set configuration values](#configure-the-kubernetes-environment).
+
 ### Configure the Required Tools
+> **NOTE**: Use the Cloud Shell provided by your cloud provider for these steps.
+>
+> AWS CloudShell uses Bash by default.
+> 
+> In Azure Cloud Shell, select Bash as the default shell.
+>
+> <strong>Helm v3.18.1 is required for this deployment.</strong>
 
+Check the installed Helm version:
+```sh
+     helm version --short
+```
+The output must start with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+
+If the version is not v3.18.1 (or Helm is not installed), install the correct version using the following commands:
+```sh
+   curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+   chmod 700 get_helm.sh
+   DESIRED_VERSION=v3.18.1 ./get_helm.sh
+```
+
+> <strong>NOTE: The following steps of this section should be used ONLY if you are not using the cloud provider’s console (for example, on a local workstation or VM).</strong>
 1. Verify that you have the following tools installed, with the minimum supported versions:
-
    | Tool | Minimum Version |
    |------|-----------------|
    | Helm | = 3.18.1 |
@@ -77,16 +100,8 @@ prerequisites specific to your cloud provider, see:
 
    3. Run the script for the appropriate cloud provider:
 
-      * **AWS:**
-
         ```sh
-        ./setup-prerequisites-tools.sh --cloud aws
-        ```
-
-      * **Azure:**
-
-        ```sh
-        ./setup-prerequisites-tools.sh --cloud azure
+        ./setup-prerequisites-tools.sh --cloud < aws | azure>
         ```
 
       To view the usage options, run this command:
@@ -168,13 +183,13 @@ Run the following commands.
    Use a command like this example:
 
    ```sh
-   kubectl create secret generic <secret-name> \
-     --from-literal=tenant-id=<the general agent's tenant ID> \
-     --from-literal=secret=<the general agent's client secret> \
+   kubectl create secret generic <secret-name>  -n <namespace> \
+     --from-literal=tenant-id=<the general access point tenant ID> \
+     --from-literal=secret=<the general access point client secret> \
      --from-literal=username=<the API user definition's user ID> \
      --from-literal=key=<the API user definition's secret> \
-     --from-literal=password=<the API user definition's password> \
-     --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool> -n <namespace>
+     --from-literal=password=<the API user definition's secret> \
+     --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
 
 5. Set up the Helm repo. Enter these commands:
@@ -186,21 +201,21 @@ Run the following commands.
    # Update the repo
    helm repo update 
 
-   # Verify that the 'marketing-ai' chart is available
-   helm search repo ci360-helm-charts/marketing-ai
+   # Verify that the 'sas-marketing-ai' chart is available
+   helm search repo ci360-helm-charts/sas-marketing-ai
    ```
 
    To inspect the chart contents (optional), run:
 
    ```sh
    # Show the README for a specific chart version
-   helm show readme ci360-helm-charts/marketing-ai --version <CHART VERSION from the helm search>
+   helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
 
    # Show the default values for a specific chart version
-   helm show values ci360-helm-charts/marketing-ai --version <CHART VERSION from the helm search>
+   helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
 
    # Show the chart metadata for a specific chart version
-   helm show chart ci360-helm-charts/marketing-ai --version <CHART VERSION from the helm search>
+   helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
    ```
 
 6. Set configuration values.
@@ -251,8 +266,8 @@ Run the following commands.
        </tr>
        <tr>
          <td>_externalGatewayHost</td>
-         <td>extapigwservice-dev.cidev.sas.us</td>
-         <td>extapigwservice-dev.cidev.sas.us</td>
+         <td>Required</td>
+         <td>Required</td>
          <td>To find this value, sign into SAS Customer Intelligence 360 (with an admin user) and navigate to <strong>General settings</strong> →  <strong>Access Points</strong>.</td>
        </tr>
        <tr>
@@ -378,7 +393,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
 Deploy the local agent through Helm:
 
 ```sh
-helm upgrade --install <release name> ci360-helm-charts/marketing-ai \
+helm upgrade --install <release name> ci360-helm-charts/sas-marketing-ai \
   --version <CHART VERSION from section 1.6.3.a> \
   --namespace <namespace created in section 1.4> \
   --values <values.yaml> \
@@ -388,7 +403,7 @@ helm upgrade --install <release name> ci360-helm-charts/marketing-ai \
 For example:
 
 ```sh
-helm upgrade --install ci360-analytic-mai ci360-helm-charts/marketing-ai \
+helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
   --version 0.0.46 \
   --namespace ci360-marketinganalytic-test \
   --values ./values-azure.yaml \
