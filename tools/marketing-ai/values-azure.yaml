@@ -24,7 +24,7 @@ global:
   # Fleets connection settings - automatically passed to all subcharts
   fleets:
     # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
-    mode: "direct"
+    mode: "gateway"
     # Fleets gateway hostname (used when mode = "gateway")
     hostName: ""
     # Tenant moniker passed in WebSocket connection URL
@@ -157,6 +157,6 @@ fleets:
 
   # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
   # These are ignored if existingSecret is set
-  username: "API-maaitbma-sinmaj"
-  password: "28A9B97A472646349FA398"
-  key: "28A9B97A472646349FA398"  # deprecated: use 'password' instead
+  username: ""
+  password: ""
+  key: ""  # deprecated: use 'password' instead
