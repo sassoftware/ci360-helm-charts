@@ -29,7 +29,7 @@ This section might supplement the Changelog file from the repository and only hi
 
 ## Prerequisites
 
-Before you begin to set up the local agent, make sure that you have completed these steps:
+Before you begin to set up the local agent, make sure that you have completed these prerequisites.
 
 ### Request a License
 
@@ -56,7 +56,7 @@ prerequisites specific to your cloud provider, see:
 
 ### Configure the Required Tools
 
-1. Verify that you have the required tools installed with the minimum supported versions:
+1. Verify that you have the following tools installed, with the minimum supported versions:
 
    | Tool | Minimum Version |
    |------|-----------------|
@@ -75,25 +75,25 @@ prerequisites specific to your cloud provider, see:
       chmod +x setup-prerequisites-tools.sh
       ```
 
-   3. Run the script with the appropriate cloud provider option:
+   3. Run the script for the appropriate cloud provider:
 
-      * **To install all tools for AWS:**
+      * **AWS:**
 
         ```sh
         ./setup-prerequisites-tools.sh --cloud aws
         ```
 
-      * **To install all tools for Azure:**
+      * **Azure:**
 
         ```sh
         ./setup-prerequisites-tools.sh --cloud azure
         ```
 
-      * **To view all available options:**
+      To view the usage options, run this command:
 
-        ```sh
-        ./setup-prerequisites-tools.sh --help
-        ```
+       ```sh
+       ./setup-prerequisites-tools.sh --help
+       ```
 
    4. Verify that the script completes successfully and all tools are installed with the correct versions.
 
@@ -162,19 +162,18 @@ Run the following commands.
    ```
 
 4. Create Kubernetes secrets for these values:
-    * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a>)
-    * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a>)
-      * Make sure to use the following naming convention for API user <i>"API-<tenant_moniker>-mai-<user_id>"</i>.
+    * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
+    * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
    Use a command like this example:
 
    ```sh
    kubectl create secret generic <secret-name> \
-     --from-literal=tenant-id=<the general agent\'s tenant ID> \
-     --from-literal=secret=<the general agent\'s client secret> \
-     --from-literal=username=<the API user definition\'s user ID> \
-     --from-literal=key=<the API user definition\'s secret> \
-     --from-literal=password=<the API user definition\'s password> \
+     --from-literal=tenant-id=<the general agent's tenant ID> \
+     --from-literal=secret=<the general agent's client secret> \
+     --from-literal=username=<the API user definition's user ID> \
+     --from-literal=key=<the API user definition's secret> \
+     --from-literal=password=<the API user definition's password> \
      --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool> -n <namespace>
    ```
 
@@ -195,31 +194,27 @@ Run the following commands.
 
    ```sh
    # Show the README for a specific chart version
-   helm show readme ci360-helm-charts/marketing-ai --version <CHART VERSION from step-3.a>
+   helm show readme ci360-helm-charts/marketing-ai --version <CHART VERSION from the helm search>
 
    # Show the default values for a specific chart version
-   helm show values ci360-helm-charts/marketing-ai --version <CHART VERSION from step-3.a>
+   helm show values ci360-helm-charts/marketing-ai --version <CHART VERSION from the helm search>
 
    # Show the chart metadata for a specific chart version
-   helm show chart ci360-helm-charts/marketing-ai --version <CHART VERSION from step-3.a>
+   helm show chart ci360-helm-charts/marketing-ai --version <CHART VERSION from the helm search>
    ```
 
 6. Set configuration values.
 
-   Download the `values-<cloud provider>.yaml` file from the following location and then edit it with a text editor:
-
-   * https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai
+   Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
+   https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai
 
    For example:
    * **AWS:** `values-aws.yaml`
    * **Azure:** `values-azure.yaml`
 
-   Update the values in this file by using the parameter names and sample values described in the table below  
-   (“The following table describes an example of variables and possible values”) as a reference for how to set each field for your environment.
+   Edit the file with a text editor, and update the values by using the parameter names and sample values that are described in the following table.
   
    ---
-
-   The following table describes an example of variables and possible values:
 
    <table role="table" style="width: 100%;">
      <colgroup>
@@ -246,7 +241,7 @@ Run the following commands.
          <td>_connectionString</td>
          <td>Not Applicable</td>
          <td>DefaultEndpointsProtocol=https;AccountName=&lt;blob bucket name&gt;;AccountKey=&lt;account key&gt;;EndpointSuffix=core.windows.net</td>
-         <td>This is the connection string for Azure blob storage. <br> <br> How to get it in the console? Azure Console →  Blob Storage → Blob Storage Name → Security + Networking → Connection String</td>
+         <td>This is the connection string for Azure blob storage. <br><br>To view this this value in Azure, navigate to <strong>Azure Console</strong> → <strong>Blob Storage</strong> → <strong>&lt;Blob storage name&gt;</strong> → <strong>Security + Networking</strong> → <strong>Connection String</strong>.</td>
        </tr>
        <tr>
          <td>_dagsStorageClassName</td>
@@ -258,14 +253,14 @@ Run the following commands.
          <td>_externalGatewayHost</td>
          <td>extapigwservice-dev.cidev.sas.us</td>
          <td>extapigwservice-dev.cidev.sas.us</td>
-         <td>You can find this value by logging into the CI360 application as admin and navigating to General settings → Access Points.</td>
+         <td>To find this value, sign into SAS Customer Intelligence 360 (with an admin user) and navigate to <strong>General settings</strong> →  <strong>Access Points</strong>.</td>
        </tr>
        <tr>
          <td>_k8sAuthSecretName</td>
          <td></td>
          <td></td>
          <td>
-           Name of the Kubernetes secret that you created in point&nbsp;4 of the "Configure the Kubernetes Environment" section (the namespace and secret that you created there must match this value).
+           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match namespace and secret that you created during that step.
          </td>
        </tr>
        <tr>
@@ -289,7 +284,7 @@ Run the following commands.
          <td>_serviceRole</td>
          <td>Application service role ARN</td>
          <td>Not Applicable</td>
-         <td>Enables access to cloud services. <br> <br> How to get it in the console? Azure Portal →  Managed Identities →  Select the one you have created →  Overview → client ID</td>
+         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
        </tr>
        <tr>
          <td>_storageClassName</td>
@@ -311,8 +306,8 @@ Run the following commands.
          <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT<br>login<br>password</td>
          <td>Not Applicable</td>
          <td>
-           login: &lt;input-storage-account-name-here&gt;<br>
-           password: &lt;input-storage-account-key-here&gt;
+           login: &lt;storage account name&gt;<br>
+           password: &lt;storage account key&gt;
          </td>
          <td>Used to create the Airflow default connection for Azure.</td>
        </tr>
@@ -321,34 +316,35 @@ Run the following commands.
          <td>fleet-credentials</td>
          <td>fleet-credentials</td>
          <td>
-           Name of the Kubernetes secret that you created in
-           <strong>point&nbsp;4 of the "Configure the Kubernetes Environment" section</strong>
-           (the namespace and secret that you created there must match this value).
+           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match the namespace and secret that you created there.
          </td>
        </tr>
        <tr>
          <td>global.fleets.hostName</td>
-         <td>E.g. fleetsapigw-demo.cidemo.sas.com</td>
-         <td>E.g. fleetsapigw-demo.cidemo.sas.com</td>
-         <td>The fleet external API gateway value provided by SAS through tenant onboarding welcome email</td>
+         <td>Example: fleetsapigw-demo.cidemo.sas.com</td>
+         <td>Example: fleetsapigw-demo.cidemo.sas.com</td>
+         <td>External API gateway value for Fleets. This value is provided by SAS in the welcome email.</td>
        </tr>
        <tr>
          <td>global.fleets.tenant</td>
-         <td>Tenant moniker for the tenant created on the CI360 side.</td>
-         <td>Tenant moniker for the tenant created on the CI360 side.</td>
+         <td>Tenant moniker for the tenant</td>
+         <td>Tenant moniker for the tenant</td>
+         <td>Used to authentication with the external API gateway. This value is created by SAS when the tenant is onboarded.<br><br>To find this value, in the user interface, click the user button and select <strong>About</strong>.</td>
        </tr>
         <tr>
          <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT | login, password</td>
          <td>Not Applicable</td>
-         <td>login: '<input-storage-account-name-here>' <br> password: '<input-storage-account-key-here></td>'
-         <td>used to created Airflow default connection for Azure. <br><br> To get these values → Refer to the _connectionString login = AccountName →  <Blob Storage Name> Password = AccountKey → <String Value></td>
+         <td>login: '<storage account name>' <br> password: '<storage account key></td>'
+         <td>Used to create the default Airflow connection for Azure. <br><br> To get these values, refer to these locations:<ul><li>_connectionString login = See <strong>&lt;account name&gt;</strong> → <strong>&lt;Blob storage name&gt;</strong></li><li>password = See <strong>&lt;account key&gt;</strong> → <strong>&lt;String Value&gt;</strong></li></ul></td>
        </tr>
      </tbody>
    </table>
 
 ### Validate Prerequisite Configuration
 
-Once the prerequisite steps are complete, run the validation tool to verify your configuration. **Do not proceed with deployment until all errors are resolved.**
+After the prerequisite steps are complete, run the validation tool to verify your configuration.
+
+> **Important:** Do not proceed with deployment until all errors are resolved.
 
 1. Download the prerequisite validation script from this location:  
    [https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai](https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai)  
@@ -362,23 +358,25 @@ Once the prerequisite steps are complete, run the validation tool to verify your
    chmod +x validate-configuration.sh
    ```
 
-4. Run the prerequisite validation script. Example usage:
+4. Run the prerequisite validation script. For example:
 
    ```sh
    ./validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace from step-1.4>
    ```
 
-   For example:
+   Here are examples based on the cloud provider:
 
-   ```sh
-   ./validate-configuration.sh --cloud aws --values ./values-aws.yaml --namespace ci360-marketinganalytic-test
-   ```
+   * **AWS:**
 
-   or
+     ```sh
+     ./validate-configuration.sh --cloud aws --values ./values-aws.yaml --namespace ci360-marketinganalytic-test
+     ```
 
-   ```sh
-   ./validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace ci360-marketinganalytic-test
-   ```
+   * **Azure:**
+
+     ```sh
+     ./validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace ci360-marketinganalytic-test
+     ```
 
 ### Deploy the Local Agent
 
@@ -389,8 +387,7 @@ helm upgrade --install <release name> ci360-helm-charts/marketing-ai \
   --version <CHART VERSION from section 1.6.3.a> \
   --namespace <namespace created in section 1.4> \
   --values <values.yaml> \
-  --timeout 15m \
-  --atomic
+  --timeout 15m
 ```
 
 For example:
@@ -400,14 +397,25 @@ helm upgrade --install ci360-analytic-mai ci360-helm-charts/marketing-ai \
   --version 0.0.46 \
   --namespace ci360-marketinganalytic-test \
   --values ./values-azure.yaml \
-  --timeout 15m \
-  --atomic
+  --timeout 15m
 ```
 
-After the Helm install/upgrade completes:
+> **Note:** Do not use the `--wait` or `--atomic` options with this chart.  
+> These options can prevent the post‑install Jobs from running, which are required to complete the deployment.
+>
+> If an error occurs during install or upgrade, you must manually roll back to a previous successful release.  
+> For example:
+>
+> ```sh
+> # List previous revisions
+> helm history <release name> -n <namespace>
+>
+> # Roll back to a known good revision (for example, revision 3)
+> helm rollback <release name> 3 -n <namespace>
+> ```
 
-1. **Temporary Airflow bootstrap step**  
-   Apply the temporary settings as mentioned in [Configure Airflow](#configure-airflow).  
+After the Helm install/upgrade completes:
+**Temporary step for Airflow bootstrap**: After the Helm install/upgrade completes, apply the temporary settings from [Configure Airflow](#configure-airflow).  
 
 > **NOTE**
 >
@@ -422,7 +430,8 @@ Airflow enables you to programmatically author, schedule, and monitor workflows.
 [Apache Airflow](https://github.com/apache/airflow). Airflow is installed as part of the Helm deployment process.
 
 1. Create an Airflow variable named "partition_config":
-   1. From the Airflow UI, navigate to **Admin > Variables**. [Admin password is set in values-<cloud>.yaml used while deployment as value of 'global.simpleAuthPassword']
+   1. From the Airflow UI, navigate to **Admin → Variables**.
+      >**Note:** The admin password is set in the 'global.simpleAuthPassword' property in the values-<cloud>.yaml file for the deployment.
    2. Click **Create** to add a new variable.
    3. Complete these fields:
       * **Key**: `partition_config`
