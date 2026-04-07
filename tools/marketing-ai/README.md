@@ -129,7 +129,7 @@ Run the following commands.
      For example:
 
      ```sh
-     aws eks update-kubeconfig --name ci360-dev-us-east-1 --region us-east-1
+     aws eks update-kubeconfig --name aws-cluster-name --region us-east-1
      ```
 
    * **Azure:**
@@ -143,19 +143,20 @@ Run the following commands.
      For example:
 
      ```sh
-     az aks update -g ci360-analytic-mai-rg -n ci360-analytic-mai-aks --enable-local-accounts
+     az aks update -g azure-resource-group-name -n azure-cluster-name --enable-local-accounts
      ```
 
      Then, get the cluster credentials:
 
      ```sh
-     az aks get-credentials --resource-group <resource-group> --name <cluster-name>
+     az aks get-credentials --resource-group <resource-group> --name <cluster-name> --overwrite-existing
+
      ```
 
      For example:
 
      ```sh
-     az aks get-credentials --resource-group ci360-dev-rg --name ci360-dev-aks-eastus
+     az aks get-credentials --resource-group azure-resource-group-name --name azure-cluster-name --overwrite-existing
      ```
 
 2. Create a namespace:
@@ -167,7 +168,7 @@ Run the following commands.
    For example:
 
    ```sh
-   kubectl create namespace ci360-marketinganalytic-test
+   kubectl create namespace user-deployment-namespace
    ```
 
 3. Tag the namespace (recommended):
@@ -176,15 +177,15 @@ Run the following commands.
    kubectl label namespace <namespace> name=<namespace> --overwrite
    ```
 
-4. <strong>Steps for Azure only – add your namespace to the Managed Identity</strong>
+4. <strong>Add your namespace to the Managed Identity (ONLY for Azure cloud)</strong>
 
      For Azure deployments that use Workload Identity, you must create federated credentials that bind the Kubernetes service accounts in your namespace to the Azure Managed Identity.
 
      Replace the placeholders in the examples below:
 
-     1. < your-namespace > – the namespace you created in step 2
-     2. < azure reource group name > – the resource group that contains the Managed Identity
-     3. The "--issuer URL" – use the issuer for your AKS cluster (region and IDs will differ)
+     1. < your-namespace >: the namespace you created in step 2
+     2. < azure reource group name >: the resource group that contains the Managed Identity
+     3. "--issuer": use the issuer for your AKS cluster (region and IDs will differ)
 
 
      ```sh
@@ -195,6 +196,7 @@ Run the following commands.
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-api-server" \
        --audience "api://AzureADTokenExchange"
+     
      ```
 
      
@@ -206,6 +208,7 @@ Run the following commands.
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:ci360-satellite" \
        --audience "api://AzureADTokenExchange"
+     
      ```
 
      
@@ -217,6 +220,7 @@ Run the following commands.
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-worker" \
        --audience "api://AzureADTokenExchange"
+     
      ```
 
 
@@ -236,33 +240,36 @@ Run the following commands.
      --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
 
-6. Set up the Helm repo. Enter these commands:
-
+### Set up the Helm repo
+   
+ 1. Get the public helm repo & check available versions
+         
+     
    ```sh
-   # Add the repo
-   helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
-
-   # Update the repo
-   helm repo update 
-
-   # Verify that the 'sas-marketing-ai' chart is available
-   helm search repo ci360-helm-charts/sas-marketing-ai
+        # Add the repo
+        helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
+     
+        # Update the repo
+        helm repo update 
+     
+        # Verify that the 'sas-marketing-ai' chart is available
+        helm search repo ci360-helm-charts/sas-marketing-ai
    ```
 
-   To inspect the chart contents (optional), run:
+ To inspect the chart contents an Optional Step
 
    ```sh
-   # Show the README for a specific chart version
-   helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-
-   # Show the default values for a specific chart version
-   helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-
-   # Show the chart metadata for a specific chart version
-   helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+        # Show the README for a specific chart version
+        helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+     
+        # Show the default values for a specific chart version
+        helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+     
+        # Show the chart metadata for a specific chart version
+        helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
    ```
 
-7. Set configuration values.
+3. Set configuration values.
 
    Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
    https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai
@@ -412,19 +419,12 @@ After the prerequisite steps are complete, run the validation tool to verify you
    ./validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace from step-1.4>
    ```
 
-   Here are examples based on the cloud provider:
-
-   * **AWS:**
+   Here is an examples:
 
      ```sh
-     ./validate-configuration.sh --cloud aws --values ./values-aws.yaml --namespace ci360-marketinganalytic-test
+     ./validate-configuration.sh --cloud aws --values ./values-< aws | azure >.yaml --namespace user-deployment-namespace
      ```
 
-   * **Azure:**
-
-     ```sh
-     ./validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace ci360-marketinganalytic-test
-     ```
 
 ### Deploy the Local Agent
 
@@ -432,8 +432,8 @@ Deploy the local agent through Helm:
 
 ```sh
 helm upgrade --install <release name> ci360-helm-charts/sas-marketing-ai \
-  --version <CHART VERSION from section 1.6.3.a> \
-  --namespace <namespace created in section 1.4> \
+  --version <CHART VERSION from section Set up the Helm repo> \
+  --namespace <namespace created in Configure the Kubernetes Environment> \
   --values <values.yaml> \
   --timeout 15m
 ```
@@ -443,7 +443,7 @@ For example:
 ```sh
 helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
   --version 0.0.46 \
-  --namespace ci360-marketinganalytic-test \
+  --namespace user-deployment-namespace \
   --values ./values-azure.yaml \
   --timeout 15m
 ```
@@ -471,34 +471,6 @@ After the Helm install/upgrade completes:
 > * For **AWS**, an example is provided in the *IAM Role for Application* section.
 > * For **Azure**, ensure the Kubernetes service account is annotated with the Azure Workload Identity client ID:  
 >   `azure.workload.identity/client-id=<workload-identity-client-id>`.
-
-### Configure Airflow
-
-Airflow enables you to programmatically author, schedule, and monitor workflows. For more information, see
-[Apache Airflow](https://github.com/apache/airflow). Airflow is installed as part of the Helm deployment process.
-
-1. Create an Airflow variable named "partition_config":
-   1. From the Airflow UI, navigate to **Admin → Variables**.
-      >**Note:** The admin password is set in the 'global.simpleAuthPassword' property in the values-<cloud>.yaml file for the deployment.
-   2. Click **Create** to add a new variable.
-   3. Complete these fields:
-      * **Key**: `partition_config`
-      * **Value**:
-
-        ```json
-        {
-            "partition_extract": 1,
-            "partition_size": 100000,
-            "partition_summary": 0,
-            "use_estimated_size": 1,
-            "sample_size": 100,
-            "row_size_buffer": 3.0,
-            "task_memory_buffer_gb": 1.0,
-            "cardinality_factor": 35
-        }
-        ```
-
-   4. Click **Save**.
 
 ### Run Helm Tests and Verify Deployment
 
