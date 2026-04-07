@@ -194,7 +194,7 @@ Run the following commands.
 
      ```sh
      az identity federated-credential create \
-       --name "api-server-sa" \
+       --name "api-server-sa-<your-namespace-name>" \
        --identity-name "<user created Managed Identity Name>" \
        --resource-group "<azure reource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
@@ -206,7 +206,7 @@ Run the following commands.
      
      ```sh
      az identity federated-credential create \
-       --name "orchestrator-sa" \
+       --name "orchestrator-sa-<your-namespace-name>" \
        --identity-name "<user created Managed Identity Name>" \
        --resource-group "<azure reource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
@@ -218,7 +218,7 @@ Run the following commands.
      
      ```sh
      az identity federated-credential create \
-       --name "airflow-worker-federated-credential" \
+       --name "airflow-worker-federated-credential-<your-namespace-name>" \
        --identity-name "<user created Managed Identity Name>" \
        --resource-group "<azure reource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
