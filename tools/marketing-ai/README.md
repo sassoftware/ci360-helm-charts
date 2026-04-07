@@ -364,10 +364,8 @@ Run the following commands.
          <td>Not Applicable</td>
          <td>
            &lt;Azure client ID&gt;<br><br>
-           For example:<br>
-           <code>edb592b9-5adb-4ea4-a587-e5a56feef85b</code>
          </td>
-         <td>Enables access to cloud services.</td>
+         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
        </tr>
        <tr>
          <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT<br>login<br>password</td>
