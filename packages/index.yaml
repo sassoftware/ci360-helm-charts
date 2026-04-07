@@ -72,8 +72,22 @@ entries:
     version: 0.0.47
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.22.0
+    created: "2026-04-07T07:50:34.690564562Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.22.0
+    description: A Helm chart for native components of CI360 Decisioning
+    digest: b570b90953a4e2d4f75104e770680de5213bc53ab9dd44aed00fafee959a5b69
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - marketing-decisioning/sas-marketing-decisioning-0.22.0.tgz
+    version: 0.22.0
+  - apiVersion: v2
     appVersion: 0.19.0
-    created: "2026-04-03T08:53:23.996930176Z"
+    created: "2026-04-07T07:50:34.68975853Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -87,7 +101,7 @@ entries:
     version: 0.19.0
   - apiVersion: v2
     appVersion: 0.16.0
-    created: "2026-04-03T08:53:23.99615937Z"
+    created: "2026-04-07T07:50:34.68896466Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -101,7 +115,7 @@ entries:
     version: 0.16.0
   - apiVersion: v2
     appVersion: 0.15.0
-    created: "2026-04-03T08:53:23.995373245Z"
+    created: "2026-04-07T07:50:34.688133801Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -115,7 +129,7 @@ entries:
     version: 0.15.0
   - apiVersion: v2
     appVersion: 0.10.0
-    created: "2026-04-03T08:53:23.994579877Z"
+    created: "2026-04-07T07:50:34.687267807Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -129,7 +143,7 @@ entries:
     version: 0.10.0
   - apiVersion: v2
     appVersion: 0.9.0
-    created: "2026-04-03T08:53:23.997638506Z"
+    created: "2026-04-07T07:50:34.691695167Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -141,4 +155,4 @@ entries:
     urls:
     - marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.9.0
-generated: "2026-04-03T08:53:23.993685511Z"
+generated: "2026-04-07T07:50:34.686333826Z"
