@@ -75,7 +75,11 @@ The output must start with v3.18.1 (for example, v3.18.1+gXXXXXXX).
 If the version is not v3.18.1 (or Helm is not installed), install the correct version using the following commands:
 ```sh
    curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+```
+```sh
    chmod 700 get_helm.sh
+```
+```sh
    DESIRED_VERSION=v3.18.1 ./get_helm.sh
 ```
 
@@ -228,6 +232,8 @@ Run the following commands.
     * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
     * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
+>**NOTE**: Make sure to use the following naming convention for API user "API-<tenant_moniker>-mai-<user_id>".
+
    Use a command like this example:
 
    ```sh
@@ -248,10 +254,12 @@ Run the following commands.
    ```sh
         # Add the repo
         helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
-     
+   ```
+   ```sh
         # Update the repo
-        helm repo update 
-     
+        helm repo update
+   ```
+   ```sh
         # Verify that the 'sas-marketing-ai' chart is available
         helm search repo ci360-helm-charts/sas-marketing-ai
    ```
@@ -261,15 +269,17 @@ Run the following commands.
    ```sh
         # Show the README for a specific chart version
         helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-     
+   ```
+   ```sh
         # Show the default values for a specific chart version
         helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-     
+   ```
+   ```sh  
         # Show the chart metadata for a specific chart version
         helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
    ```
 
-3. Set configuration values.
+2. Set configuration values.
 
    Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
    https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai
@@ -279,6 +289,8 @@ Run the following commands.
    * **Azure:** `values-azure.yaml`
 
    Edit the file with a text editor, and update the values by using the parameter names and sample values that are described in the following table.
+
+   >**NOTE**: Post updates, upload the file to cloud console.
   
    ---
 
@@ -405,7 +417,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
    [https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai](https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai)  
    (file name: `validate-configuration.sh`)
 
-2. Upload the script to your environment if needed (for example, to your Kubernetes admin node or jump host).
+2. Upload the script to your cloud console.
 
 3. In the terminal, change the permissions to make the script executable:
 
@@ -461,10 +473,8 @@ helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
 > # Roll back to a known good revision (for example, revision 3)
 > helm rollback <release name> 3 -n <namespace>
 > ```
-
-After the Helm install/upgrade completes:
-**Temporary step for Airflow bootstrap**: After the Helm install/upgrade completes, apply the temporary settings from [Configure Airflow](#configure-airflow).  
-
+>
+> 
 > **NOTE**
 >
 > * The release name should match the service account naming pattern.
