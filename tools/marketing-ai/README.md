@@ -94,7 +94,7 @@ If the version is not v3.18.1 (or Helm is not installed), install the correct ve
 
 2. If any of the required tools are not installed or are below the minimum version, use the `setup-prerequisites-tools.sh` script to install them:
 
-   1. Download the `setup-prerequisites-tools.sh` script from this location: [https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools](https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/tree/main/tools)
+   1. Download the `setup-prerequisites-tools.sh` script from this location: [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
 
    2. Change the permissions to make the script executable:
 
