@@ -22,7 +22,7 @@ entries:
     name: sas-marketing-ai
     type: application
     urls:
-    - https://github.com/sas-institute-rnd-ci360/ci360-mkt-ai-helm/releases/download/v0.2.0/sas-marketing-ai-0.2.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/sas-marketing-ai-0.2.0.tgz
     version: 0.2.0
   - apiVersion: v2
     appVersion: 0.1.0
