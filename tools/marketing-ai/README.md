@@ -176,7 +176,51 @@ Run the following commands.
    kubectl label namespace <namespace> name=<namespace> --overwrite
    ```
 
-4. Create Kubernetes secrets for these values:
+4. <strong>Steps for Azure only – add your namespace to the Managed Identity</strong>
+
+     For Azure deployments that use Workload Identity, you must create federated credentials that bind the Kubernetes service accounts in your namespace to the Azure Managed Identity.
+
+     Replace the placeholders in the examples below:
+
+     1. < your-namespace > – the namespace you created in step 2
+     2. < azure reource group name > – the resource group that contains the Managed Identity
+     3. The "--issuer URL" – use the issuer for your AKS cluster (region and IDs will differ)
+
+
+     ```sh
+     az identity federated-credential create \
+       --name "api-server-sa" \
+       --identity-name "<user created Managed Identity Name>" \
+       --resource-group "<azure reource group name>" \
+       --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
+       --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-api-server" \
+       --audience "api://AzureADTokenExchange"
+     ```
+
+     
+     ```sh
+     az identity federated-credential create \
+       --name "orchestrator-sa" \
+       --identity-name "<user created Managed Identity Name>" \
+       --resource-group "<azure reource group name>" \
+       --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
+       --subject "system:serviceaccount:<your-namespace>:ci360-satellite" \
+       --audience "api://AzureADTokenExchange"
+     ```
+
+     
+     ```sh
+     az identity federated-credential create \
+       --name "airflow-worker-federated-credential" \
+       --identity-name "<user created Managed Identity Name>" \
+       --resource-group "<azure reource group name>" \
+       --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
+       --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-worker" \
+       --audience "api://AzureADTokenExchange"
+     ```
+
+
+5. Create Kubernetes secrets for these values:
     * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
     * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
@@ -192,7 +236,7 @@ Run the following commands.
      --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
 
-5. Set up the Helm repo. Enter these commands:
+6. Set up the Helm repo. Enter these commands:
 
    ```sh
    # Add the repo
@@ -218,7 +262,7 @@ Run the following commands.
    helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
    ```
 
-6. Set configuration values.
+7. Set configuration values.
 
    Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
    https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai
@@ -253,12 +297,6 @@ Run the following commands.
          <td></td>
        </tr>
        <tr>
-         <td>_connectionString</td>
-         <td>Not Applicable</td>
-         <td>DefaultEndpointsProtocol=https;AccountName=&lt;blob bucket name&gt;;AccountKey=&lt;account key&gt;;EndpointSuffix=core.windows.net</td>
-         <td>This is the connection string for Azure blob storage. <br><br>To view this this value in Azure, navigate to <strong>Azure Console</strong> → <strong>Blob Storage</strong> → <strong>&lt;Blob storage name&gt;</strong> → <strong>Security + Networking</strong> → <strong>Connection String</strong>.</td>
-       </tr>
-       <tr>
          <td>_dagsStorageClassName</td>
          <td>efc-sc</td>
          <td>azurefile-csi</td>
@@ -272,8 +310,8 @@ Run the following commands.
        </tr>
        <tr>
          <td>_k8sAuthSecretName</td>
-         <td></td>
-         <td></td>
+         <td>Required</td>
+         <td>Required</td>
          <td>
            Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match namespace and secret that you created during that step.
          </td>
@@ -331,8 +369,8 @@ Run the following commands.
        </tr>
        <tr>
          <td>global.fleets.hostName</td>
-         <td>Example: fleetsapigw-demo.cidemo.sas.com</td>
-         <td>Example: fleetsapigw-demo.cidemo.sas.com</td>
+         <td>Required</td>
+         <td>Required</td>
          <td>External API gateway value for Fleets. This value is provided by SAS in the welcome email.</td>
        </tr>
        <tr>
