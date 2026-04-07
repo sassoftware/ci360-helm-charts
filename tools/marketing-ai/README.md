@@ -153,14 +153,14 @@ Run the following commands.
      Then, get the cluster credentials:
 
      ```sh
-     az aks get-credentials --resource-group <resource-group> --name <cluster-name> --overwrite-existing
+     az aks get-credentials -g <resource-group> -n <cluster-name> --overwrite-existing
 
      ```
 
      For example:
 
      ```sh
-     az aks get-credentials --resource-group azure-resource-group-name --name azure-cluster-name --overwrite-existing
+     az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --overwrite-existing
      ```
 
 2. Create a namespace:
