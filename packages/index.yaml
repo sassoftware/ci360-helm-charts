@@ -95,8 +95,22 @@ entries:
     version: 0.0.47
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.26.0
+    created: "2026-04-08T10:12:19.877458968Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.26.0
+    description: A Helm chart for native components of CI360 Decisioning
+    digest: 54a9a27bbec3307ec16aa28f4b94c204d455a56aa3c639063e4f10224d3bd45b
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - marketing-decisioning/sas-marketing-decisioning-0.26.0.tgz
+    version: 0.26.0
+  - apiVersion: v2
     appVersion: 0.25.0
-    created: "2026-04-08T05:59:57.269116733Z"
+    created: "2026-04-08T10:12:19.87666674Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -110,7 +124,7 @@ entries:
     version: 0.25.0
   - apiVersion: v2
     appVersion: 0.23.0
-    created: "2026-04-08T05:59:57.268208548Z"
+    created: "2026-04-08T10:12:19.874906396Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -124,7 +138,7 @@ entries:
     version: 0.23.0
   - apiVersion: v2
     appVersion: 0.22.0
-    created: "2026-04-08T05:59:57.265967375Z"
+    created: "2026-04-08T10:12:19.873494708Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -138,7 +152,7 @@ entries:
     version: 0.22.0
   - apiVersion: v2
     appVersion: 0.19.0
-    created: "2026-04-08T05:59:57.265206925Z"
+    created: "2026-04-08T10:12:19.872729451Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -152,7 +166,7 @@ entries:
     version: 0.19.0
   - apiVersion: v2
     appVersion: 0.16.0
-    created: "2026-04-08T05:59:57.26444881Z"
+    created: "2026-04-08T10:12:19.871955136Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -166,7 +180,7 @@ entries:
     version: 0.16.0
   - apiVersion: v2
     appVersion: 0.15.0
-    created: "2026-04-08T05:59:57.263611207Z"
+    created: "2026-04-08T10:12:19.871134154Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -180,7 +194,7 @@ entries:
     version: 0.15.0
   - apiVersion: v2
     appVersion: 0.10.0
-    created: "2026-04-08T05:59:57.262789333Z"
+    created: "2026-04-08T10:12:19.870287444Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -194,7 +208,7 @@ entries:
     version: 0.10.0
   - apiVersion: v2
     appVersion: 0.9.0
-    created: "2026-04-08T05:59:57.269858978Z"
+    created: "2026-04-08T10:12:19.878168151Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -206,4 +220,4 @@ entries:
     urls:
     - marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.9.0
-generated: "2026-04-08T05:59:57.261878353Z"
+generated: "2026-04-08T10:12:19.869326441Z"
