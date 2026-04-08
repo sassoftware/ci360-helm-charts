@@ -438,7 +438,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
 
 ### Deploy the Local Agent
 
-Deploy the local agent through Helm:
+1. Deploy the local agent through Helm:
 
 ```sh
 helm upgrade --install <release name> ci360-helm-charts/sas-marketing-ai \
@@ -457,8 +457,14 @@ helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
   --values ./values-azure.yaml \
   --timeout 15m
 ```
-
-> **Note:** Do not use the `--wait` or `--atomic` options with this chart.  
+ 
+> **Note:**
+> * The release name should match the service account naming pattern.
+> * For **AWS**, an example is provided in the *IAM Role for Application* section.
+> * For **Azure**, ensure the Kubernetes service account is annotated with the Azure Workload Identity client ID: `azure.workload.identity/client-id=<workload-identity-client-id>`.
+>
+> **Deployment command:**
+> Do not use the `--wait` or `--atomic` options with this chart.  
 > These options can prevent the post‑install Jobs from running, which are required to complete the deployment.
 >
 > If an error occurs during install or upgrade, you must manually roll back to a previous successful release.  
@@ -471,15 +477,11 @@ helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
 > # Roll back to a known good revision (for example, revision 3)
 > helm rollback <release name> 3 -n <namespace>
 > ```
->
-> 
-> **NOTE**
->
-> * The release name should match the service account naming pattern.
-> * For **AWS**, an example is provided in the *IAM Role for Application* section.
-> * For **Azure**, ensure the Kubernetes service account is annotated with the Azure Workload Identity client ID:  
->   `azure.workload.identity/client-id=<workload-identity-client-id>`.
 
+2. Wait for pods to start before you proceed:
+```sh
+kubectl -n <namespace created in Configure the Kubernetes Environment> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
+```
 ### Run Helm Tests and Verify Deployment
 
 1. Run the Helm tests by entering this command:
