@@ -84,14 +84,102 @@
 ###############################################################################
 
 # Self-heal line endings if running with CRLF
-if [[ "$(file "$0" 2>/dev/null)" == *"CRLF"* ]]; then
-  echo "[WARN] Detected Windows line endings. Converting..."
-  sed -i 's/\r$//' "$0"
+if [[ "$(file "$0" 2>/dev/null)" == *"CRLF"* ]] || [[ "$(head -1 "$0" 2>/dev/null)" == *$'\r' ]]; then
+  echo "[WARN] Detected Windows line endings (CRLF). Converting to Unix (LF)..."
+  if command -v dos2unix &>/dev/null; then
+    dos2unix "$0" 2>/dev/null || sed -i 's/\r$//' "$0"
+  else
+    sed -i 's/\r$//' "$0"
+  fi
   echo "[INFO] Line endings fixed. Re-executing script..."
-  exec "$0" "$@"
+  exec bash "$0" "$@"
 fi
 
 set -euo pipefail
+
+#######################################
+# Detect if running in Cloud Shell
+#######################################
+is_azure_cloudshell() {
+  # Azure CloudShell environment variables
+  [[ -n "${AZUREPS_HOST_ENVIRONMENT:-}" ]] && return 0
+  [[ "${ACC_CLOUD:-}" == "true" ]] && return 0
+  
+  # File system checks
+  [[ -f "/usr/bin/cloud-init" && -d "/opt/azure" ]] && return 0
+  
+  return 1
+}
+
+is_aws_cloudshell() {
+  # AWS CloudShell environment variables
+  [[ "${AWS_EXECUTION_ENV:-}" == "CloudShell" ]] && return 0
+  
+  # File system checks
+  [[ -d "/home/cloudshell-user" ]] && return 0
+  
+  return 1
+}
+
+is_any_cloudshell() {
+  is_azure_cloudshell || is_aws_cloudshell
+}
+
+#######################################
+# Platform Detection
+#######################################
+detect_platform() {
+  local platform="unknown"
+  local os_type=""
+  
+  # Detect OS
+  if [[ -n "${OSTYPE:-}" ]]; then
+    case "$OSTYPE" in
+      linux*) os_type="linux" ;;
+      darwin*) os_type="macos" ;;
+      msys*|mingw*|cygwin*) os_type="windows" ;;
+      *) os_type="unknown" ;;
+    esac
+  else
+    os_type="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]' || echo 'unknown')"
+  fi
+  
+  # Detect specific environments
+  if is_azure_cloudshell; then
+    platform="azure-cloudshell"
+  elif is_aws_cloudshell; then
+    platform="aws-cloudshell"
+  elif [[ "$os_type" == "windows" ]] || [[ -n "${MSYSTEM:-}" ]]; then
+    # Git Bash, MSYS2, or similar on Windows
+    platform="windows-bash"
+  elif [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
+    platform="wsl"
+  elif [[ "$os_type" == "macos" ]]; then
+    platform="macos"
+  elif [[ "$os_type" == "linux" ]]; then
+    platform="linux"
+  fi
+  
+  echo "$platform"
+}
+
+PLATFORM=$(detect_platform)
+
+#######################################
+# Detect Architecture
+#######################################
+get_arch() {
+  local arch
+  arch="$(uname -m 2>/dev/null || echo 'x86_64')"
+  
+  case "$arch" in
+    x86_64|amd64) echo "amd64" ;;
+    aarch64|arm64) echo "arm64" ;;
+    *) echo "amd64" ;;  # default fallback
+  esac
+}
+
+ARCH=$(get_arch)
 
 #######################################
 # Global Configuration
@@ -109,7 +197,7 @@ MIN_HELM_VERSION="3.18.1"
 MIN_AWS_CLI_VERSION="2.18.1"
 MIN_AZURE_CLI_VERSION="2.83.0"
 
-# Pinned versions for installation (>= minimum)
+# Pinned versions for installation
 KUBECTL_VERSION="v1.33.0"
 HELM_REQUIRED_VERSION="3.18.1"
 HELM_VERSION="${HELM_REQUIRED_VERSION}"
@@ -132,9 +220,443 @@ declare -A PRE_INSTALL_VERSIONS=()
 # Track mandatory failures
 MANDATORY_FAILED=false
 
-# Define mandatory tools
-MANDATORY_TOOLS=("kubectl" "helm")
+#######################################
+# Logging Helpers
+#######################################
+log_info() {
+  [[ "$QUIET_MODE" == true ]] && return
+  echo "[INFO]  $*"
+}
 
+log_warn()    { echo "[WARN]  $*" >&2; }
+log_error()   { echo "[ERROR] $*" >&2; }
+
+log_success() {
+  [[ "$QUIET_MODE" == true ]] && return
+  echo "[SUCCESS] $*"
+}
+
+log_dry_run() {
+  echo "[DRY-RUN] $*"
+}
+
+#######################################
+# Version Comparison
+#######################################
+version_gte() {
+  local ver1="$1"
+  local ver2="$2"
+  
+  # Remove 'v' prefix if present
+  ver1="${ver1#v}"
+  ver2="${ver2#v}"
+  
+  # Use sort -V for version comparison
+  if [[ "$(printf '%s\n%s' "$ver2" "$ver1" | sort -V | head -n1)" == "$ver2" ]]; then
+    return 0  # ver1 >= ver2
+  else
+    return 1  # ver1 < ver2
+  fi
+}
+
+#######################################
+# Extract version number from tool output
+#######################################
+get_tool_version() {
+  local tool="$1"
+  local version=""
+  
+  case "$tool" in
+    kubectl)
+      version=$(kubectl version --client 2>/dev/null | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
+      version="${version:-0.0.0}"
+      ;;
+    helm)
+      # Try multiple patterns for different helm output formats
+      # Pattern 1: "v3.18.1+g..." (helm version --short)
+      version=$(helm version --short 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 | sed 's/^v//')
+      
+      # Pattern 2: version.BuildInfo{Version:"v3.18"...} (helm version)
+      # IMPORTANT: Match Version: field specifically, NOT GoVersion:
+      if [[ -z "$version" || "$version" == "0.0.0" ]]; then
+        # Use sed to extract only from Version: field (before GoVersion appears)
+        version=$(helm version 2>/dev/null | sed -n 's/.*Version:"\(v\?[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?\)".*/\1/p' | sed 's/^v//' | head -1)
+      fi
+      
+      # Pattern 3: Try --client flag
+      if [[ -z "$version" || "$version" == "0.0.0" ]]; then
+        version=$(helm version --client 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 | sed 's/^v//')
+      fi
+      
+      # Normalize 2-part versions to 3-part (3.18 → 3.18.0)
+      if [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        version="${version}.0"
+      fi
+      
+      version="${version:-0.0.0}"
+      ;;
+    aws|aws-cli)
+      version=$(aws --version 2>/dev/null | sed -n 's/aws-cli\/\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
+      version="${version:-0.0.0}"
+      ;;
+    az|azure-cli)
+      # Try JSON output first (more reliable)
+      version=$(az version -o json 2>/dev/null | grep -oE '"azure-cli": "[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+      
+      # Fallback to TSV output
+      if [[ -z "$version" || "$version" == "0.0.0" ]]; then
+        version=$(az version -o tsv 2>/dev/null | head -1 | awk '{print $1}')
+      fi
+      
+      version="${version:-0.0.0}"
+      ;;
+  esac
+  
+  echo "$version"
+}
+
+#######################################
+# Command Check
+#######################################
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+#######################################
+# Detect Package Manager
+#######################################
+detect_pkg_manager() {
+  if command_exists apt-get; then
+    echo "apt"
+  elif command_exists yum; then
+    echo "yum"
+  elif command_exists apk; then
+    echo "apk"
+  elif command_exists brew; then
+    echo "brew"
+  elif command_exists choco; then
+    echo "choco"
+  else
+    echo "none"
+  fi
+}
+
+#######################################
+# Download Helper (cross-platform)
+#######################################
+download_file() {
+  local url="$1"
+  local output="$2"
+  
+  if command_exists curl; then
+    retry curl -fsSL "$url" -o "$output"
+  elif command_exists wget; then
+    retry wget -q "$url" -O "$output"
+  else
+    log_error "Neither curl nor wget is available. Cannot download files."
+    return 1
+  fi
+}
+
+#######################################
+# Retry Wrapper
+#######################################
+retry() {
+  local n=1
+  local cmd="$*"
+  until [ $n -gt "$MAX_RETRIES" ]; do
+    if eval "$cmd"; then
+      return 0
+    fi
+    log_warn "Attempt $n failed. Retrying in ${RETRY_DELAY}s..."
+    sleep "$RETRY_DELAY"
+    n=$((n + 1))
+  done
+  log_error "Command failed after ${MAX_RETRIES} attempts: $cmd"
+  return 1
+}
+
+#######################################
+# Install kubectl (cross-platform)
+#######################################
+install_kubectl() {
+  log_info "Installing kubectl ${KUBECTL_VERSION} (minimum: v${MIN_KUBECTL_VERSION})..."
+  
+  if [[ "$DRY_RUN" == true ]]; then
+    log_dry_run "Would install kubectl ${KUBECTL_VERSION} to ${INSTALL_DIR}/kubectl"
+    return 0
+  fi
+  
+  # Validate requested version meets minimum
+  local requested_ver="${KUBECTL_VERSION#v}"
+  if ! version_gte "$requested_ver" "$MIN_KUBECTL_VERSION"; then
+    log_error "Requested kubectl version ${KUBECTL_VERSION} is below minimum v${MIN_KUBECTL_VERSION}"
+    return 1
+  fi
+  
+  local os_name="linux"
+  case "$PLATFORM" in
+    macos) os_name="darwin" ;;
+    windows-bash|wsl) os_name="linux" ;;
+    *) os_name="linux" ;;
+  esac
+  
+  local download_url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/${os_name}/${ARCH}/kubectl"
+  local kubectl_bin="${INSTALL_DIR}/kubectl"
+  
+  # Windows needs .exe extension
+  if [[ "$PLATFORM" == "windows-bash" ]]; then
+    kubectl_bin="${kubectl_bin}.exe"
+    download_url="${download_url}.exe"
+  fi
+  
+  log_info "Downloading kubectl ${KUBECTL_VERSION} from ${download_url}..."
+  download_file "$download_url" "$kubectl_bin"
+  
+  chmod +x "$kubectl_bin" 2>/dev/null || true
+  
+  # Verify the binary works
+  if ! "$kubectl_bin" version --client &>/dev/null; then
+    log_error "kubectl binary verification failed"
+    return 1
+  fi
+  
+  log_success "kubectl ${KUBECTL_VERSION} installed to ${kubectl_bin}"
+}
+
+#######################################
+# Verify Helm Version (no auto-install)
+#######################################
+verify_helm_version() {
+  if [[ "$DRY_RUN" == true ]]; then
+    log_dry_run "Would verify helm == v${HELM_REQUIRED_VERSION}"
+    return 0
+  fi
+
+  if ! command_exists helm; then
+    log_error "helm is NOT installed."
+    log_error ""
+    log_error "Please install helm v${HELM_REQUIRED_VERSION} manually:"
+    log_error ""
+    log_error "  Linux/macOS/WSL:"
+    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-${ARCH}.tar.gz | tar -xz"
+    log_error "    sudo mv linux-${ARCH}/helm /usr/local/bin/helm"
+    log_error ""
+    log_error "  macOS (Homebrew):"
+    log_error "    brew install helm@${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Windows (Chocolatey):"
+    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Windows (Manual):"
+    log_error "    Download from: https://github.com/helm/helm/releases/tag/v${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Official docs: https://helm.sh/docs/intro/install/"
+    return 1
+  fi
+
+  local installed_ver
+  installed_ver=$(get_tool_version helm)
+  
+  # Allow minor version match (3.18 == 3.18.1 or 3.18.0 == 3.18.1)
+  local required_major_minor="${HELM_REQUIRED_VERSION%.*}"  # "3.18"
+  local installed_major_minor="${installed_ver%.*}"         # "3.18"
+
+  if [[ "$installed_ver" == "$HELM_REQUIRED_VERSION" ]] || [[ "$installed_major_minor" == "$required_major_minor" ]]; then
+    log_success "helm version verified: v${installed_ver} (required: v${HELM_REQUIRED_VERSION} ✓)"
+    return 0
+  else
+    log_error "helm version mismatch!"
+    log_error "  Installed : v${installed_ver}"
+    log_error "  Required  : v${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "Please install the exact required version manually:"
+    log_error ""
+    log_error "  Linux/macOS/WSL:"
+    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-${ARCH}.tar.gz | tar -xz"
+    log_error "    sudo mv linux-${ARCH}/helm /usr/local/bin/helm"
+    log_error ""
+    log_error "  macOS (Homebrew):"
+    log_error "    brew unlink helm && brew install helm@${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Windows (Chocolatey):"
+    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
+    log_error ""
+    log_error "  Official docs: https://helm.sh/docs/intro/install/"
+    return 1
+  fi
+}
+
+#######################################
+# Install AWS CLI (cross-platform)
+#######################################
+install_aws_cli() {
+  log_info "Installing AWS CLI ${AWS_CLI_VERSION} (minimum: ${MIN_AWS_CLI_VERSION})..."
+  
+  if [[ "$DRY_RUN" == true ]]; then
+    log_dry_run "Would install AWS CLI ${AWS_CLI_VERSION}"
+    return 0
+  fi
+  
+  case "$PLATFORM" in
+    macos)
+      log_info "Downloading AWS CLI for macOS..."
+      cd /tmp
+      download_file "https://awscli.amazonaws.com/AWSCLIV2.pkg" "AWSCLIV2.pkg"
+      sudo installer -pkg AWSCLIV2.pkg -target /
+      rm -f AWSCLIV2.pkg
+      ;;
+    windows-bash)
+      log_info "For Windows, please install AWS CLI manually:"
+      log_info "  Download: https://awscli.amazonaws.com/AWSCLIV2.msi"
+      log_info "  Or use: msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi"
+      return 1
+      ;;
+    *)
+      log_info "Downloading AWS CLI v2 for Linux..."
+      cd /tmp
+      download_file "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" "awscliv2.zip"
+      
+      # Install unzip if needed
+      if ! command_exists unzip; then
+        case "$PKG_MANAGER" in
+          apt) sudo apt-get install -y -qq unzip ;;
+          yum) sudo yum install -y -q unzip ;;
+          *) log_error "unzip not available"; return 1 ;;
+        esac
+      fi
+      
+      unzip -q -o awscliv2.zip
+      
+      # Install or update
+      if [[ -d /usr/local/aws-cli ]]; then
+        log_info "Updating existing AWS CLI installation..."
+        sudo ./aws/install --update
+      else
+        log_info "Installing AWS CLI..."
+        sudo ./aws/install
+      fi
+      
+      rm -rf aws awscliv2.zip
+      ;;
+  esac
+  
+  # Verify installation
+  if ! aws --version &>/dev/null; then
+    log_error "AWS CLI installation verification failed"
+    return 1
+  fi
+  
+  log_success "AWS CLI installed: $(aws --version)"
+}
+
+#######################################
+# Install Azure CLI (cross-platform)
+#######################################
+install_azure_cli() {
+  log_info "Installing Azure CLI ${AZURE_CLI_VERSION} (minimum: ${MIN_AZURE_CLI_VERSION})..."
+  
+  if [[ "$DRY_RUN" == true ]]; then
+    log_dry_run "Would install Azure CLI ${AZURE_CLI_VERSION}"
+    return 0
+  fi
+  
+  # Check if running in Azure Cloud Shell (managed environment)
+  if is_azure_cloudshell; then
+    log_warn "Azure Cloud Shell detected — Azure CLI is pre-installed and managed by Microsoft."
+    local current_ver
+    current_ver=$(get_tool_version azure-cli)
+    log_warn "Current version: ${current_ver}"
+    log_warn "Cannot upgrade Azure CLI in Cloud Shell. It is managed by Microsoft."
+    
+    if ! version_gte "$current_ver" "$MIN_AZURE_CLI_VERSION"; then
+      log_warn "Version ${current_ver} is below minimum ${MIN_AZURE_CLI_VERSION}"
+      log_warn "Azure Cloud Shell will be updated by Microsoft in future releases."
+    fi
+    
+    return 1  # Don't fail - just skip upgrade
+  fi
+  
+  case "$PLATFORM" in
+    macos)
+      if command_exists brew; then
+        log_info "Installing Azure CLI via Homebrew..."
+        brew update && brew install azure-cli
+      else
+        log_error "Homebrew not found. Please install from: https://brew.sh"
+        return 1
+      fi
+      ;;
+    windows-bash)
+      log_info "For Windows, please install Azure CLI manually:"
+      log_info "  Download: https://aka.ms/installazurecliwindows"
+      log_info "  Or use: winget install -e --id Microsoft.AzureCLI"
+      return 1
+      ;;
+    *)
+      case "$PKG_MANAGER" in
+        apt)
+          log_info "Installing Azure CLI via Microsoft repository..."
+          retry sudo apt-get update -qq
+          retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ca-certificates curl apt-transport-https lsb-release gnupg
+          
+          sudo mkdir -p /etc/apt/keyrings
+          curl -sLS https://packages.microsoft.com/keys/microsoft.asc | \
+            gpg --dearmor | sudo tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+          sudo chmod go+r /etc/apt/keyrings/microsoft.gpg
+          
+          # Add Azure CLI repository
+          if ! command -v lsb_release &>/dev/null; then
+            log_error "lsb_release not found. Cannot determine distribution codename."
+            return 1
+          fi
+          AZ_DIST=$(lsb_release -cs)
+          echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_DIST main" | \
+            sudo tee /etc/apt/sources.list.d/azure-cli.list
+          
+          retry sudo apt-get update -qq
+          retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq azure-cli
+          ;;
+        yum)
+          log_info "Installing Azure CLI via Microsoft repository..."
+          sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+          
+          sudo tee /etc/yum.repos.d/azure-cli.repo << 'EOF'
+[azure-cli]
+name=Azure CLI
+baseurl=https://packages.microsoft.com/yumrepos/azure-cli
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+          
+          retry sudo yum install -y -q azure-cli
+          ;;
+        *)
+          log_info "Installing Azure CLI via pip (with --user flag)..."
+          if command_exists pip3; then
+            pip3 install --user azure-cli
+          elif command_exists pip; then
+            pip install --user azure-cli
+          else
+            log_error "pip/pip3 not available. Cannot install Azure CLI."
+            return 1
+          fi
+          ;;
+      esac
+      ;;
+  esac
+  
+  # Verify installation
+  if ! az version &>/dev/null; then
+    log_error "Azure CLI installation verification failed"
+    return 1
+  fi
+  
+  local installed_ver
+  installed_ver=$(get_tool_version azure-cli)
+  log_success "Azure CLI installed: ${installed_ver}"
+}
 #######################################
 # Usage / Help
 #######################################
@@ -329,75 +851,6 @@ parse_args() {
 }
 
 #######################################
-# Logging Helpers
-#######################################
-log_info() {
-  [[ "$QUIET_MODE" == true ]] && return
-  echo "[INFO]  $*"
-}
-
-log_warn()    { echo "[WARN]  $*" >&2; }
-log_error()   { echo "[ERROR] $*" >&2; }
-
-log_success() {
-  [[ "$QUIET_MODE" == true ]] && return
-  echo "[SUCCESS] $*"
-}
-
-log_dry_run() {
-  echo "[DRY-RUN] $*"
-}
-
-#######################################
-# Version Comparison
-# Returns 0 if $1 >= $2, 1 otherwise
-#######################################
-version_gte() {
-  local ver1="$1"
-  local ver2="$2"
-  
-  # Remove 'v' prefix if present
-  ver1="${ver1#v}"
-  ver2="${ver2#v}"
-  
-  # Use sort -V for version comparison
-  if [[ "$(printf '%s\n%s' "$ver2" "$ver1" | sort -V | head -n1)" == "$ver2" ]]; then
-    return 0  # ver1 >= ver2
-  else
-    return 1  # ver1 < ver2
-  fi
-}
-
-#######################################
-# Extract version number from tool output
-#######################################
-get_tool_version() {
-  local tool="$1"
-  local version=""
-  
-  case "$tool" in
-    kubectl)
-      version=$(kubectl version --client 2>/dev/null | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      version="${version:-0.0.0}"
-      ;;
-    helm)
-      version=$(helm version --short 2>/dev/null | sed -n 's/.*v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      version="${version:-0.0.0}"
-      ;;
-    aws|aws-cli)
-      version=$(aws --version 2>/dev/null | sed -n 's/aws-cli\/\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1)
-      version="${version:-0.0.0}"
-      ;;
-    az|azure-cli)
-      version=$(az version 2>/dev/null | sed -n 's/.*"azure-cli": "\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -1)
-      version="${version:-0.0.0}"
-      ;;
-  esac
-  
-  echo "$version"
-}
-
-#######################################
 # Check if tool version meets minimum
 #######################################
 check_version() {
@@ -412,31 +865,6 @@ check_version() {
   else
     return 1  # Version is too old
   fi
-}
-
-#######################################
-# Retry Wrapper
-#######################################
-retry() {
-  local n=1
-  local cmd="$*"
-  until [ $n -gt "$MAX_RETRIES" ]; do
-    if eval "$cmd"; then
-      return 0
-    fi
-    log_warn "Attempt $n failed. Retrying in ${RETRY_DELAY}s..."
-    sleep "$RETRY_DELAY"
-    n=$((n + 1))
-  done
-  log_error "Command failed after ${MAX_RETRIES} attempts: $cmd"
-  return 1
-}
-
-#######################################
-# Command Check
-#######################################
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
 }
 
 #######################################
@@ -563,201 +991,6 @@ install_pkg() {
 }
 
 #######################################
-# Tool Installers
-#######################################
-
-install_kubectl() {
-  log_info "Installing kubectl ${KUBECTL_VERSION} (minimum: v${MIN_KUBECTL_VERSION})..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install kubectl ${KUBECTL_VERSION} to ${INSTALL_DIR}/kubectl"
-    return 0
-  fi
-  
-  # Validate requested version meets minimum
-  local requested_ver="${KUBECTL_VERSION#v}"
-  if ! version_gte "$requested_ver" "$MIN_KUBECTL_VERSION"; then
-    log_error "Requested kubectl version ${KUBECTL_VERSION} is below minimum v${MIN_KUBECTL_VERSION}"
-    return 1
-  fi
-  
-  log_info "Downloading kubectl ${KUBECTL_VERSION}..."
-  retry curl -fsSL \
-    "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-    -o "${INSTALL_DIR}/kubectl"
-  
-  chmod +x "${INSTALL_DIR}/kubectl"
-  
-  # Verify the binary works
-  if ! "${INSTALL_DIR}/kubectl" version --client &>/dev/null; then
-    log_error "kubectl binary verification failed"
-    return 1
-  fi
-  
-  log_success "kubectl ${KUBECTL_VERSION} installed to ${INSTALL_DIR}/kubectl"
-}
-
-# Helm is NOT installed by this script.
-# Only verifies the installed version matches exactly v3.18.1
-verify_helm_version() {
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would verify helm == v${HELM_REQUIRED_VERSION}"
-    return 0
-  fi
-
-  if ! command_exists helm; then
-    log_error "helm is NOT installed."
-    log_error "Please install helm v${HELM_REQUIRED_VERSION} manually:"
-    log_error ""
-    log_error "  Linux/macOS:"
-    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-amd64.tar.gz | tar -xz"
-    log_error "    mv linux-amd64/helm /usr/local/bin/helm"
-    log_error ""
-    log_error "  macOS (Homebrew):"
-    log_error "    brew install helm@${HELM_REQUIRED_VERSION}"
-    log_error ""
-    log_error "  Windows (Chocolatey):"
-    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
-    log_error ""
-    log_error "  Official docs: https://helm.sh/docs/intro/install/"
-    return 1
-  fi
-
-  local installed_ver
-  installed_ver=$(get_tool_version helm)
-
-  if [[ "$installed_ver" == "$HELM_REQUIRED_VERSION" ]]; then
-    log_success "helm version verified: v${installed_ver} (required: v${HELM_REQUIRED_VERSION} ✓)"
-    return 0
-  else
-    log_error "helm version mismatch!"
-    log_error "  Installed : v${installed_ver}"
-    log_error "  Required  : v${HELM_REQUIRED_VERSION}"
-    log_error ""
-    log_error "Please install the exact required version manually:"
-    log_error ""
-    log_error "  Linux/macOS:"
-    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-amd64.tar.gz | tar -xz"
-    log_error "    sudo mv linux-amd64/helm /usr/local/bin/helm"
-    log_error ""
-    log_error "  macOS (Homebrew):"
-    log_error "    brew unlink helm && brew install helm@${HELM_REQUIRED_VERSION}"
-    log_error ""
-    log_error "  Windows (Chocolatey):"
-    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
-    log_error ""
-    log_error "  Official docs: https://helm.sh/docs/intro/install/"
-    return 1
-  fi
-}
-
-install_aws_cli() {
-  log_info "Installing AWS CLI ${AWS_CLI_VERSION} (minimum: ${MIN_AWS_CLI_VERSION})..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install AWS CLI ${AWS_CLI_VERSION}"
-    return 0
-  fi
-  
-  log_info "Downloading AWS CLI v2..."
-  
-  cd /tmp
-  retry curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-  
-  # Install unzip if needed
-  if ! command_exists unzip; then
-    install_pkg unzip
-  fi
-  
-  unzip -q -o awscliv2.zip
-  
-  # Install or update
-  if [[ -d /usr/local/aws-cli ]]; then
-    log_info "Updating existing AWS CLI installation..."
-    sudo ./aws/install --update
-  else
-    log_info "Installing AWS CLI..."
-    sudo ./aws/install
-  fi
-  
-  # Cleanup
-  rm -rf aws awscliv2.zip
-  
-  # Verify installation
-  if ! aws --version &>/dev/null; then
-    log_error "AWS CLI installation verification failed"
-    return 1
-  fi
-  
-  log_success "AWS CLI installed: $(aws --version)"
-}
-
-install_azure_cli() {
-  log_info "Installing Azure CLI ${AZURE_CLI_VERSION} (minimum: ${MIN_AZURE_CLI_VERSION})..."
-  
-  if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would install Azure CLI ${AZURE_CLI_VERSION}"
-    return 0
-  fi
-  
-  case "$PKG_MANAGER" in
-    apt)
-      log_info "Installing Azure CLI via Microsoft repository..."
-      
-      # Install prerequisites
-      retry sudo apt-get update -qq
-      retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ca-certificates curl apt-transport-https lsb-release gnupg
-      
-      # Add Microsoft signing key
-      sudo mkdir -p /etc/apt/keyrings
-      curl -sLS https://packages.microsoft.com/keys/microsoft.asc | \
-        gpg --dearmor | sudo tee /etc/apt/keyrings/microsoft.gpg > /dev/null
-      sudo chmod go+r /etc/apt/keyrings/microsoft.gpg
-      
-      # Add Azure CLI repository
-      AZ_DIST=$(lsb_release -cs)
-      echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_DIST main" | \
-        sudo tee /etc/apt/sources.list.d/azure-cli.list
-      
-      # Install Azure CLI
-      retry sudo apt-get update -qq
-      retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq azure-cli
-      ;;
-    yum)
-      log_info "Installing Azure CLI via Microsoft repository..."
-      
-      # Import Microsoft repository key
-      sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
-      
-      # Add Azure CLI repository
-      sudo tee /etc/yum.repos.d/azure-cli.repo << 'EOF'
-[azure-cli]
-name=Azure CLI
-baseurl=https://packages.microsoft.com/yumrepos/azure-cli
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc
-EOF
-      
-      # Install Azure CLI
-      retry sudo yum install -y -q azure-cli
-      ;;
-    *)
-      log_info "Installing Azure CLI via pip..."
-      pip3 install azure-cli
-      ;;
-  esac
-  
-  # Verify installation
-  if ! az version &>/dev/null; then
-    log_error "Azure CLI installation verification failed"
-    return 1
-  fi
-  
-  log_success "Azure CLI installed: $(az version -o tsv 2>/dev/null | head -1)"
-}
-
-#######################################
 # Verify Installation
 #######################################
 verify_tool() {
@@ -862,19 +1095,24 @@ configure_environment() {
 
   log_info "Configuring environment..."
   
-  # Add to PATH in shell profile
+  # Detect shell config file
   local shell_rc=""
   
-  if [[ -f "$HOME/.bashrc" ]]; then
-    shell_rc="$HOME/.bashrc"
-  elif [[ -f "$HOME/.bash_profile" ]]; then
-    shell_rc="$HOME/.bash_profile"
-  elif [[ -f "$HOME/.profile" ]]; then
-    shell_rc="$HOME/.profile"
+  if [[ -n "${BASH_VERSION:-}" ]]; then
+    if [[ -f "$HOME/.bashrc" ]]; then
+      shell_rc="$HOME/.bashrc"
+    elif [[ -f "$HOME/.bash_profile" ]]; then
+      shell_rc="$HOME/.bash_profile"
+    elif [[ -f "$HOME/.profile" ]]; then
+      shell_rc="$HOME/.profile"
+    fi
+  elif [[ -n "${ZSH_VERSION:-}" ]]; then
+    shell_rc="$HOME/.zshrc"
   fi
   
-  if [[ -n "$shell_rc" ]]; then
-    if ! grep -q "${INSTALL_DIR}" "$shell_rc"; then
+  # Add to PATH
+  if [[ -n "$shell_rc" && -f "$shell_rc" ]]; then
+    if ! grep -q "${INSTALL_DIR}" "$shell_rc" 2>/dev/null; then
       echo "" >> "$shell_rc"
       echo "# Added by setup-prerequisites-tools.sh" >> "$shell_rc"
       echo "export PATH=\"${INSTALL_DIR}:\$PATH\"" >> "$shell_rc"
@@ -882,24 +1120,17 @@ configure_environment() {
     else
       log_info "${INSTALL_DIR} already in PATH"
     fi
-  fi
-  
-  # Configure kubectl autocomplete
-  if command_exists kubectl; then
-    if [[ -n "$shell_rc" ]]; then
-      if ! grep -q "kubectl completion" "$shell_rc"; then
+    
+    # Configure autocomplete (Bash only)
+    if [[ -n "${BASH_VERSION:-}" ]]; then
+      if command_exists kubectl && ! grep -q "kubectl completion" "$shell_rc" 2>/dev/null; then
         echo "" >> "$shell_rc"
         echo "# kubectl autocomplete" >> "$shell_rc"
         echo "source <(kubectl completion bash)" >> "$shell_rc"
         log_success "Enabled kubectl autocomplete"
       fi
-    fi
-  fi
-  
-  # Configure helm autocomplete
-  if command_exists helm; then
-    if [[ -n "$shell_rc" ]]; then
-      if ! grep -q "helm completion" "$shell_rc"; then
+      
+      if command_exists helm && ! grep -q "helm completion" "$shell_rc" 2>/dev/null; then
         echo "" >> "$shell_rc"
         echo "# helm autocomplete" >> "$shell_rc"
         echo "source <(helm completion bash)" >> "$shell_rc"
@@ -908,7 +1139,6 @@ configure_environment() {
     fi
   fi
 }
-
 #######################################
 # Print Summary
 #######################################
@@ -972,9 +1202,9 @@ print_summary() {
         new_ver=$(get_tool_version "$tool")
         old_ver="${PRE_INSTALL_VERSIONS[$tool]:-0.0.0}"
         if [[ "$old_ver" == "0.0.0" ]]; then
-          printf "│   ✓ %-10s %-10s (new install)                     │\n" "$tool:" "$new_ver"
+          printf "│   ✓ %-10s %-10s %-32s │\n" "$tool:" "$new_ver" "(new install)"
         else
-          printf "│   ✓ %-10s %-6s → %-6s (upgraded)                  │\n" "$tool:" "$old_ver" "$new_ver"
+          printf "│   ✓ %-10s %-6s → %-6s %-22s │\n" "$tool:" "$old_ver" "$new_ver" "(upgraded)"
         fi
       done
     fi
@@ -1044,10 +1274,13 @@ print_summary() {
     print_tool_status "kubectl" "$MIN_KUBECTL_VERSION"
     local helm_ver
     helm_ver=$(get_tool_version helm)
-    if command_exists helm && [[ "$helm_ver" == "$HELM_REQUIRED_VERSION" ]]; then
-      printf "│  ✓ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(exact match required)"
+    local helm_major_minor="${helm_ver%.*}"
+    local required_major_minor="${MIN_HELM_VERSION%.*}"  # Changed from HELM_REQUIRED_VERSION
+    
+    if command_exists helm && ([[ "$helm_ver" == "$MIN_HELM_VERSION" ]] || [[ "$helm_major_minor" == "$required_major_minor" ]]); then
+      printf "│  ✓ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(OK)"
     elif command_exists helm; then
-      printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(REQUIRED: v${HELM_REQUIRED_VERSION})"
+      printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(REQUIRED: v${MIN_HELM_VERSION})"
     else
       printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "---" "(NOT INSTALLED)"
     fi
@@ -1063,6 +1296,7 @@ print_summary() {
     echo "└─────────────────────────────────────────────────────────────┘"
     
     # Check if all tools are compatible
+    
     local all_compatible=true
     local tools_to_check=("kubectl" "helm")
     local min_versions=("$MIN_KUBECTL_VERSION" "$MIN_HELM_VERSION")
@@ -1077,11 +1311,31 @@ print_summary() {
     fi
     
     for i in "${!tools_to_check[@]}"; do
-      tool="${tools_to_check[$i]}"
+      local tool="${tools_to_check[$i]}"
       local min_ver="${min_versions[$i]}"
-      if ! check_version "$tool" "$min_ver"; then
-        all_compatible=false
-        break
+      
+      # Special handling for helm - must match major.minor version
+      if [[ "$tool" == "helm" ]]; then
+        if command_exists helm; then
+          local helm_ver
+          helm_ver=$(get_tool_version helm)
+          local helm_major_minor="${helm_ver%.*}"
+          local required_major_minor="${HELM_REQUIRED_VERSION%.*}"
+          
+          if [[ "$helm_ver" != "$HELM_REQUIRED_VERSION" ]] && [[ "$helm_major_minor" != "$required_major_minor" ]]; then
+            all_compatible=false
+            break
+          fi
+        else
+          all_compatible=false
+          break
+        fi
+      else
+        # For other tools, check minimum version
+        if ! check_version "$tool" "$min_ver"; then
+          all_compatible=false
+          break
+        fi
       fi
     done
     
@@ -1089,7 +1343,7 @@ print_summary() {
     if [[ "$all_compatible" == true ]]; then
       log_success "All tools meet minimum version requirements!"
     else
-      log_warn "Some tools do not meet minimum version requirements. Please review above."
+      log_warn "Some tools do not meet version requirements. Please review above."
     fi
   fi
   
@@ -1182,7 +1436,22 @@ main() {
         if install_azure_cli; then
           track_install "azure-cli" "installed" "new/upgraded"
         else
-          track_install "azure-cli" "failed" "installation error"
+          # Check if it failed due to Cloud Shell limitation
+          local current_ver
+          current_ver=$(get_tool_version azure-cli)
+          
+          if is_azure_cloudshell && [[ "$current_ver" != "0.0.0" ]]; then
+            # Azure CLI exists in CloudShell but cannot be upgraded
+            track_install "azure-cli" "skipped" "CloudShell managed (v${current_ver})"
+            
+            if ! version_gte "$current_ver" "$MIN_AZURE_CLI_VERSION"; then
+              log_warn "Azure CLI v${current_ver} is below minimum v${MIN_AZURE_CLI_VERSION}"
+              log_warn "In Azure Cloud Shell, Azure CLI is managed by Microsoft and will be updated in future releases."
+              # Don't fail the entire bootstrap for Azure CLI version in CloudShell
+            fi
+          else
+            track_install "azure-cli" "failed" "installation error"
+          fi
         fi
       else
         track_install "azure-cli" "skipped" "meets minimum"
@@ -1206,17 +1475,39 @@ main() {
   if [[ "$MANDATORY_FAILED" == true ]]; then
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║  ✗ BOOTSTRAP FAILED                                       ║"
-    echo "║    One or more tools failed to install.                   ║"
+    echo "║    One or more mandatory tools failed to install.         ║"
     echo "║    Please review the errors above and retry.              ║"
     echo "╚═══════════════════════════════════════════════════════════╝"
     exit 4
   else
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║  ✓ BOOTSTRAP COMPLETE                                     ║"
-    echo "║    All tools installed and verified successfully.         ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
-    log_success "Bootstrap complete!"
-    exit 0
+    # Check if we have warnings about cloud CLI versions
+    local has_cli_warning=false
+    
+    if [[ "$CLOUD_PROVIDER" == "azure" ]]; then
+      local azure_ver
+      azure_ver=$(get_tool_version azure-cli)
+      if [[ "$azure_ver" != "0.0.0" ]] && ! version_gte "$azure_ver" "$MIN_AZURE_CLI_VERSION"; then
+        has_cli_warning=true
+      fi
+    fi
+    
+    if [[ "$has_cli_warning" == true ]] && is_any_cloudshell; then
+      echo "╔═══════════════════════════════════════════════════════════╗"
+      echo "║  ⚠ BOOTSTRAP COMPLETE WITH WARNINGS                       ║"
+      echo "║    Mandatory tools (kubectl, helm) are installed.         ║"
+      echo "║    Cloud CLI version is below minimum but managed by      ║"
+      echo "║    the cloud provider and will be updated automatically.  ║"
+      echo "╚═══════════════════════════════════════════════════════════╝"
+      log_warn "Bootstrap complete with warnings. Review above for details."
+      exit 0
+    else
+      echo "╔═══════════════════════════════════════════════════════════╗"
+      echo "║  ✓ BOOTSTRAP COMPLETE                                     ║"
+      echo "║    All tools installed and verified successfully.         ║"
+      echo "╚═══════════════════════════════════════════════════════════╝"
+      log_success "Bootstrap complete!"
+      exit 0
+    fi
   fi
 }
 
