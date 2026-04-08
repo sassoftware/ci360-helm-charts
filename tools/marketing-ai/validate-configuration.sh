@@ -326,7 +326,13 @@ if [[ "$CLOUD" == "aws" ]]; then
   fi
 
   # Helper: run any aws command with the active profile
-  aws_cmd() { aws "$@" ${AWS_PROFILE:+--profile "$AWS_PROFILE"}; }
+  aws_cmd() { 
+    if [[ -n "$AWS_PROFILE" ]]; then
+      aws "$@" --profile "$AWS_PROFILE"
+    else
+      aws "$@"
+    fi
+  }
   
   # IAM roles
   IAM_ROLES=$(yaml_extract_iam_roles "$VALUES_FILE")
@@ -354,15 +360,6 @@ fi
 
 # Azure-specific values
 if [[ "$CLOUD" == "azure" ]]; then
-  # Azure Storage
-  AZURE_CONNECTION_STRING=$(yaml_get "$VALUES_FILE" "global.azureStorage.connectionString")
-  [[ -z "$AZURE_CONNECTION_STRING" || "$AZURE_CONNECTION_STRING" == "null" ]] && AZURE_CONNECTION_STRING=$(yaml_get_anchor "$VALUES_FILE" "_connectionString")
-  
-  # Extract AccountName from connection string
-  AZURE_STORAGE_ACCOUNT=""
-  if [[ -n "$AZURE_CONNECTION_STRING" ]]; then
-    AZURE_STORAGE_ACCOUNT=$(echo "$AZURE_CONNECTION_STRING" | grep -oE 'AccountName=[^;]+' | sed 's/AccountName=//' || echo "")
-  fi
   
   # Workload Identity
   AZURE_WORKLOAD_IDENTITY=$(yaml_extract_azure_identity_anchor "$VALUES_FILE")
@@ -376,19 +373,37 @@ if [[ "$CLOUD" == "azure" ]]; then
   [[ -z "$EXTERNAL_GATEWAY_HOST" || "$EXTERNAL_GATEWAY_HOST" == "null" ]] && EXTERNAL_GATEWAY_HOST="$EXTERNAL_GW_ANCHOR"
 
   # Extract AIRFLOW_CONN_WASB_DEFAULT from airflow.extraEnv block
-  # Format: - name: AIRFLOW_CONN_WASB_DEFAULT
-  #           value: '{"conn_type": "wasb", "login": "<account>", "password": "<key>"}'
   WASB_CONN_RAW=$(grep -A1 'AIRFLOW_CONN_WASB_DEFAULT' "$VALUES_FILE" 2>/dev/null \
     | grep 'value:' \
-    | sed 's/.*value:[[:space:]]*//' \
-    | tr -d "'" \
+    | sed "s/.*value:[[:space:]]*//" \
     | tr -d '\r' \
+    | xargs 2>/dev/null \
     || echo "")
 
-  # Extract login (storage account name) and password (storage account key) from JSON value
-  WASB_LOGIN=$(echo "$WASB_CONN_RAW" | grep -oE '"login"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"login"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' || echo "")
-  WASB_PASSWORD=$(echo "$WASB_CONN_RAW" | grep -oE '"password"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"password"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' || echo "")
-  WASB_CONN_TYPE=$(echo "$WASB_CONN_RAW" | grep -oE '"conn_type"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"conn_type"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' || echo "")
+  WASB_CONN_TYPE=$(echo "$WASB_CONN_RAW" | sed -n 's/.*"conn_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || echo "")
+  WASB_HOST_RAW=$(echo "$WASB_CONN_RAW" | sed -n 's/.*"host"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || echo "")
+  
+  # Resolve Helm template reference to actual anchor value
+  # Handle pattern: {{ .Values.global.storageAccountName }}.blob.core.windows.net
+  if [[ "$WASB_HOST_RAW" =~ \{\{.*\.Values\.global\.storageAccountName.*\}\} ]]; then
+    # Try anchor first
+    STORAGE_ACCOUNT_NAME=$(yaml_get_anchor "$VALUES_FILE" "_storageAccountName")
+    
+    # Fallback to direct value
+    if [[ -z "$STORAGE_ACCOUNT_NAME" ]]; then
+      STORAGE_ACCOUNT_NAME=$(yaml_get "$VALUES_FILE" "global.storageAccountName")
+    fi
+    
+    if [[ -n "$STORAGE_ACCOUNT_NAME" && "$STORAGE_ACCOUNT_NAME" != "null" ]]; then
+      WASB_HOST="${STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
+    else
+      # Keep the template string so it's obvious in error messages
+      WASB_HOST="$WASB_HOST_RAW"
+      log_warn "Could not resolve {{ .Values.global.storageAccountName }} - check _storageAccountName anchor in values file"
+    fi
+  else
+    WASB_HOST="$WASB_HOST_RAW"
+  fi
 fi
 
 # ═══════════════════════════════════════════════════════════════
@@ -566,7 +581,9 @@ if [[ "$SKIP_CLOUD" == false ]]; then
         *mum-prod.ci360.sas.com*)
           ECR_REGION="ap-south-1" ;;
         *)
-          ECR_REGION="" ;;
+          ECR_REGION=""
+          log_warn "Could not determine ECR region from ExternalGatewayHost: ${EXTERNAL_GATEWAY_HOST}"
+          ;;
       esac
 
       if [[ -n "$ECR_REGION" ]]; then
@@ -575,9 +592,9 @@ if [[ "$SKIP_CLOUD" == false ]]; then
         else
           log_fail "ECR registry NOT accessible in region: ${ECR_REGION}"
         fi
-      else
-        log_warn "Could not determine ECR region from ExternalGatewayHost"
       fi
+    else
+      log_warn "ExternalGatewayHost is empty or unresolved — skipping ECR check"
     fi
   fi
 
@@ -593,30 +610,7 @@ if [[ "$SKIP_CLOUD" == false ]]; then
       log_fail "Azure login invalid — run 'az login'"
     fi
 
-    # 2b. Storage account
-    if [[ -n "$AZURE_STORAGE_ACCOUNT" && ! "$AZURE_STORAGE_ACCOUNT" =~ ^\* ]]; then
-      if az storage account show --name "$AZURE_STORAGE_ACCOUNT" &>/dev/null 2>&1; then
-        log_pass "Storage account exists: $AZURE_STORAGE_ACCOUNT"
-
-        # 2c. Blob container
-        if [[ -n "$STORAGE_BUCKET" && -n "$AZURE_CONNECTION_STRING" && ! "$STORAGE_BUCKET" =~ ^\* ]]; then
-          if az storage container show --name "$STORAGE_BUCKET" \
-              --connection-string "$AZURE_CONNECTION_STRING" &>/dev/null 2>&1; then
-            log_pass "Blob container accessible: $STORAGE_BUCKET"
-          else
-            log_fail "Blob container NOT accessible: $STORAGE_BUCKET"
-          fi
-        elif [[ -n "$STORAGE_BUCKET" ]]; then
-          log_warn "Cannot verify blob container — connection string not found"
-        fi
-      else
-        log_fail "Storage account NOT found: $AZURE_STORAGE_ACCOUNT"
-      fi
-    else
-      log_fail "Azure storage account not found in values (check global.azureStorage.connectionString)"
-    fi
-
-    # 2d. Workload Identity
+    # 2b. Workload Identity
     if [[ -n "$AZURE_WORKLOAD_IDENTITY" && ! "$AZURE_WORKLOAD_IDENTITY" =~ ^\* ]]; then
       # Validate UUID format
       if [[ "$AZURE_WORKLOAD_IDENTITY" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
@@ -636,14 +630,12 @@ if [[ "$SKIP_CLOUD" == false ]]; then
       log_fail "Workload Identity Client ID is missing or unresolved — set _workloadIdentityClientId in values file"
     fi
 
-    # 2e. Node pool (agentpool)
+    # 2c. Node pool (agentpool)
     if [[ -n "$AGENTPOOL" && ! "$AGENTPOOL" =~ ^\* ]]; then
       log_info "Node selector agentpool: ${AGENTPOOL}"
     fi
 
-    # 2f. AIRFLOW_CONN_WASB_DEFAULT validation
-    # log_section "2f  Airflow WASB Connection (airflow.extraEnv)"
-
+    # 2d. AIRFLOW_CONN_WASB_DEFAULT validation (Workload Identity-based access)
     if [[ -z "$WASB_CONN_RAW" ]]; then
       log_fail "AIRFLOW_CONN_WASB_DEFAULT is missing from airflow.extraEnv — required for Azure blob storage access"
     else
@@ -656,43 +648,15 @@ if [[ "$SKIP_CLOUD" == false ]]; then
         log_fail "WASB conn_type is '${WASB_CONN_TYPE:-<missing>}' — expected 'wasb'"
       fi
 
-      # Validate login (storage account name)
-      if [[ -z "$WASB_LOGIN" || "$WASB_LOGIN" == "<input-storage-account-name-here>" ]]; then
-        log_fail "WASB login (storage account name) is not set — replace '<input-storage-account-name-here>' with actual account name"
+      # Validate host field
+      if [[ -z "$WASB_HOST" ]]; then
+        log_fail "WASB host could not be resolved from template — check global.storageAccountName anchor"
+      elif [[ "$WASB_HOST" == *.blob.core.windows.net ]]; then
+        log_pass "WASB host is valid: ${WASB_HOST}"
       else
-        # Cross-check with connection string account name
-        if [[ -n "$AZURE_STORAGE_ACCOUNT" && "$WASB_LOGIN" != "$AZURE_STORAGE_ACCOUNT" ]]; then
-          log_warn "WASB login '${WASB_LOGIN}' does not match storage account in connection string '${AZURE_STORAGE_ACCOUNT}'"
-        else
-          log_pass "WASB login (storage account name) is set: ${WASB_LOGIN}"
-        fi
-      fi
-
-      # Validate password (storage account key)
-      if [[ -z "$WASB_PASSWORD" || "$WASB_PASSWORD" == "<input-storage-account-key-here>" ]]; then
-        log_fail "WASB password (storage account key) is not set — replace '<input-storage-account-key-here>' with actual account key"
-      else
-        # Mask key in output — show only first 4 and last 4 chars
-        masked_key="${WASB_PASSWORD:0:4}****${WASB_PASSWORD: -4}"
-        log_pass "WASB password (storage account key) is set: ${masked_key}"
-
-        # Verify the key is valid by testing storage account access
-        if az storage account show --name "$WASB_LOGIN" \
-            --query "name" --output tsv &>/dev/null 2>&1; then
-          if az storage container list \
-              --account-name "$WASB_LOGIN" \
-              --account-key "$WASB_PASSWORD" \
-              --output none &>/dev/null 2>&1; then
-            log_pass "WASB storage account key verified — able to list containers for '${WASB_LOGIN}'"
-          else
-            log_fail "WASB storage account key is invalid — cannot access storage account '${WASB_LOGIN}'"
-          fi
-        else
-          log_warn "Could not verify WASB storage account '${WASB_LOGIN}' — check account name"
-        fi
+        log_fail "WASB host format is invalid: ${WASB_HOST} (expected: <account-name>.blob.core.windows.net)"
       fi
     fi
-
   fi
 
 else
@@ -779,10 +743,10 @@ if [[ "$SKIP_K8S" == false ]]; then
             log_fail "Fleets secret '${EXISTING_SECRET_CLEAN}' specified but not found in namespace '${NAMESPACE}'"
           fi
         else
-          log_fail "fleets.existingSecret is blank or empty — please specify a valid secret name when using gateway mode"
+          log_fail "fleets.existingSecret is missing or empty — required when using gateway mode (specify in values file)"
         fi
       elif [[ "$FLEETS_MODE" == "direct" ]]; then
-        log_info "Fleets mode is 'direct' — skipping fleets.existingSecret check"
+        log_info "Fleets mode is 'direct' — fleets.existingSecret not required"
       fi
 
       # Check for resource quotas
