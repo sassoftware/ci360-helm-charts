@@ -95,8 +95,22 @@ entries:
     version: 0.0.47
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.28.0
+    created: "2026-04-09T06:13:50.375698827Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.28.0
+    description: A Helm chart for native components of CI360 Marketing Decisioning
+    digest: b89e020d2e8259c201bfba4e37ddbc5bc8f64a5e77a219edd2c3c4e189acdf7a
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.28.0.tgz
+    version: 0.28.0
+  - apiVersion: v2
     appVersion: 0.27.0
-    created: "2026-04-09T04:20:32.107762657Z"
+    created: "2026-04-09T06:13:50.374928512Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -106,11 +120,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.27.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.27.0.tgz
     version: 0.27.0
   - apiVersion: v2
     appVersion: 0.26.0
-    created: "2026-04-09T04:20:32.106254593Z"
+    created: "2026-04-09T06:13:50.374134732Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -120,11 +134,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.26.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.26.0.tgz
     version: 0.26.0
   - apiVersion: v2
     appVersion: 0.25.0
-    created: "2026-04-09T04:20:32.10491675Z"
+    created: "2026-04-09T06:13:50.373375177Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -134,11 +148,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.25.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.25.0.tgz
     version: 0.25.0
   - apiVersion: v2
     appVersion: 0.23.0
-    created: "2026-04-09T04:20:32.103613659Z"
+    created: "2026-04-09T06:13:50.371562468Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -148,11 +162,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.23.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.23.0.tgz
     version: 0.23.0
   - apiVersion: v2
     appVersion: 0.22.0
-    created: "2026-04-09T04:20:32.102207376Z"
+    created: "2026-04-09T06:13:50.370280851Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -162,11 +176,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.22.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.22.0.tgz
     version: 0.22.0
   - apiVersion: v2
     appVersion: 0.19.0
-    created: "2026-04-09T04:20:32.100828733Z"
+    created: "2026-04-09T06:13:50.369494646Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -176,11 +190,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.19.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.19.0.tgz
     version: 0.19.0
   - apiVersion: v2
     appVersion: 0.16.0
-    created: "2026-04-09T04:20:32.099444922Z"
+    created: "2026-04-09T06:13:50.368652266Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -190,11 +204,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.16.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.16.0.tgz
     version: 0.16.0
   - apiVersion: v2
     appVersion: 0.15.0
-    created: "2026-04-09T04:20:32.098004708Z"
+    created: "2026-04-09T06:13:50.367852185Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -204,11 +218,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.15.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.15.0.tgz
     version: 0.15.0
   - apiVersion: v2
     appVersion: 0.10.0
-    created: "2026-04-09T04:20:32.096544224Z"
+    created: "2026-04-09T06:13:50.36700698Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -218,11 +232,11 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.10.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.10.0.tgz
     version: 0.10.0
   - apiVersion: v2
     appVersion: 0.9.0
-    created: "2026-04-09T04:20:32.110709494Z"
+    created: "2026-04-09T06:13:50.376384275Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -232,6 +246,6 @@ entries:
     name: sas-marketing-decisioning
     type: application
     urls:
-    - marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.9.0
-generated: "2026-04-09T04:20:32.094568266Z"
+generated: "2026-04-09T06:13:50.366066457Z"
