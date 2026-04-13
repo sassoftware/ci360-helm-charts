@@ -110,6 +110,8 @@ postgresql-ha:
     storageClass: *storageClassName
 
 ci360-satellite:
+  podLabels:
+    azure.workload.identity/use: "true"
   dags:
     persistence:
       storageClassName: *dagsStorageClassName
