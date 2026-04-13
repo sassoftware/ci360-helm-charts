@@ -486,13 +486,13 @@ kubectl -n <namespace created in Configure the Kubernetes Environment> wait --fo
 1. Run the Helm tests by entering this command:
 
    ```sh
-   helm test <release-name> --namespace <your namespace> --timeout 20m
+   helm test <release-name> --namespace <your namespace> --timeout 20m &
    ```
 
    For example:
 
    ```sh
-   helm test ci360-analytic-mai --namespace my-namespace-1 --timeout 20m
+   helm test ci360-analytic-mai --namespace my-namespace-1 --timeout 20m &
    ```
 
 > **Note:** While the above Job is in progress, inspect the logs for errors, and repeat the previous steps (if necessary) until the deployment is successful.
