@@ -118,8 +118,22 @@ entries:
     version: 0.0.47
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.30.0
+    created: "2026-04-13T09:42:08.022452092Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.30.0
+    description: A Helm chart for native components of CI360 Marketing Decisioning
+    digest: 57465e3a091df3198f5f5ac7039507aadf4a78b06537822f528b5785527bf77d
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.30.0.tgz
+    version: 0.30.0
+  - apiVersion: v2
     appVersion: 0.29.0
-    created: "2026-04-13T09:29:16.986533116Z"
+    created: "2026-04-13T09:42:08.021697864Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -133,7 +147,7 @@ entries:
     version: 0.29.0
   - apiVersion: v2
     appVersion: 0.28.0
-    created: "2026-04-13T09:29:16.985736352Z"
+    created: "2026-04-13T09:42:08.020933901Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -147,7 +161,7 @@ entries:
     version: 0.28.0
   - apiVersion: v2
     appVersion: 0.27.0
-    created: "2026-04-13T09:29:16.98491899Z"
+    created: "2026-04-13T09:42:08.020144232Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -161,7 +175,7 @@ entries:
     version: 0.27.0
   - apiVersion: v2
     appVersion: 0.26.0
-    created: "2026-04-13T09:29:16.98344746Z"
+    created: "2026-04-13T09:42:08.018623185Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -175,7 +189,7 @@ entries:
     version: 0.26.0
   - apiVersion: v2
     appVersion: 0.25.0
-    created: "2026-04-13T09:29:16.981896952Z"
+    created: "2026-04-13T09:42:08.016936773Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -189,7 +203,7 @@ entries:
     version: 0.25.0
   - apiVersion: v2
     appVersion: 0.23.0
-    created: "2026-04-13T09:29:16.980885529Z"
+    created: "2026-04-13T09:42:08.016168196Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -203,7 +217,7 @@ entries:
     version: 0.23.0
   - apiVersion: v2
     appVersion: 0.22.0
-    created: "2026-04-13T09:29:16.980055843Z"
+    created: "2026-04-13T09:42:08.01508134Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -217,7 +231,7 @@ entries:
     version: 0.22.0
   - apiVersion: v2
     appVersion: 0.19.0
-    created: "2026-04-13T09:29:16.979244362Z"
+    created: "2026-04-13T09:42:08.014295273Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -231,7 +245,7 @@ entries:
     version: 0.19.0
   - apiVersion: v2
     appVersion: 0.16.0
-    created: "2026-04-13T09:29:16.978436047Z"
+    created: "2026-04-13T09:42:08.013484847Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -245,7 +259,7 @@ entries:
     version: 0.16.0
   - apiVersion: v2
     appVersion: 0.15.0
-    created: "2026-04-13T09:29:16.977538525Z"
+    created: "2026-04-13T09:42:08.012676628Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -259,7 +273,7 @@ entries:
     version: 0.15.0
   - apiVersion: v2
     appVersion: 0.10.0
-    created: "2026-04-13T09:29:16.976610016Z"
+    created: "2026-04-13T09:42:08.011855131Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -273,7 +287,7 @@ entries:
     version: 0.10.0
   - apiVersion: v2
     appVersion: 0.9.0
-    created: "2026-04-13T09:29:16.987282722Z"
+    created: "2026-04-13T09:42:08.023162765Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -285,4 +299,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.9.0
-generated: "2026-04-13T09:29:16.975653024Z"
+generated: "2026-04-13T09:42:08.010861616Z"
