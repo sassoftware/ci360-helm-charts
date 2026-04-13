@@ -241,7 +241,6 @@ Run the following commands.
      --from-literal=tenant-id=<the general access point tenant ID> \
      --from-literal=secret=<the general access point client secret> \
      --from-literal=username=<the API user definition's user ID> \
-     --from-literal=key=<the API user definition's secret> \
      --from-literal=password=<the API user definition's secret> \
      --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
@@ -445,17 +444,17 @@ helm upgrade --install <release name> ci360-helm-charts/sas-marketing-ai \
   --version <CHART VERSION from section Set up the Helm repo> \
   --namespace <namespace created in Configure the Kubernetes Environment> \
   --values <values.yaml> \
-  --timeout 15m
+  --timeout 20m
 ```
 
 For example:
 
 ```sh
 helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
-  --version 0.0.46 \
+  --version 0.4.0 \
   --namespace user-deployment-namespace \
   --values ./values-azure.yaml \
-  --timeout 15m
+  --timeout 20m
 ```
  
 > **Note:**
@@ -487,13 +486,13 @@ kubectl -n <namespace created in Configure the Kubernetes Environment> wait --fo
 1. Run the Helm tests by entering this command:
 
    ```sh
-   helm test <release-name> --namespace <your namespace> --timeout 20m &
+   helm test <release-name> --namespace <your namespace> --timeout 20m
    ```
 
    For example:
 
    ```sh
-   helm test ci360-analytic-mai --namespace my-namespace-1 --timeout 20m &
+   helm test ci360-analytic-mai --namespace my-namespace-1 --timeout 20m
    ```
 
 > **Note:** While the above Job is in progress, inspect the logs for errors, and repeat the previous steps (if necessary) until the deployment is successful.
