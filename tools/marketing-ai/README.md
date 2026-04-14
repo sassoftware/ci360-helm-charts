@@ -121,6 +121,8 @@ If the version is not v3.18.1 (or Helm is not installed), install the correct ve
 Run the following commands.
 
 > **NOTE:** These steps require you to be logged in to your cloud account (AWS or Azure CLI).
+> 
+> **NOTE:** For Azure: The user should have **contributor** access in order to perform all the steps successfully
 
 1. Connect to your Kubernetes cluster.
 
