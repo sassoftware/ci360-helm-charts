@@ -55,7 +55,120 @@ prerequisites specific to your cloud provider, see:
 - [Azure Infrastructure Requirements](./README-azure-infrastructure.md)
 
 ### Collect The Required Deployment Information
-As per the cloud provider on which the deployment will be done, please collect the information for attributes mentioned in **Point-6** of [Set configuration values](#configure-the-kubernetes-environment).
+As per the cloud provider on which the deployment will be done, please collect the information for attributes mentioned below.
+
+---
+
+   <table role="table" style="width: 100%;">
+     <colgroup>
+       <col span="1" style="width: 20%;">
+       <col span="1" style="width: 40%;">
+       <col span="1" style="width: 40%;">
+     </colgroup>
+     <thead style="background-color: #0766d1; font-weight: bold;">
+       <tr>
+         <th>Parameter</th>
+         <th>Sample values for - AWS</th>
+         <th>Sample values for - Azure</th>
+         <th>Description</th>
+       </tr>
+     </thead>
+     <tbody>
+       <tr>
+         <td>_agentpool</td>
+         <td>Not Applicable</td>
+         <td>agentpool</td>
+         <td></td>
+       </tr>
+       <tr>
+         <td>_dagsStorageClassName</td>
+         <td>efc-sc</td>
+         <td>azurefile-csi</td>
+         <td>Used for sharing DAGs across different pods.</td>
+       </tr>
+       <tr>
+         <td>_externalGatewayHost</td>
+         <td>Required</td>
+         <td>Required</td>
+         <td>To find this value, sign into SAS Customer Intelligence 360 (with an admin user) and navigate to <strong>General settings</strong> →  <strong>Access Points</strong>.</td>
+       </tr>
+       <tr>
+         <td>_k8sAuthSecretName</td>
+         <td>Required</td>
+         <td>Required</td>
+         <td>
+           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match namespace and secret that you created during that step.
+         </td>
+       </tr>
+       <tr>
+         <td>_remoteBaseLogFolder</td>
+         <td>s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent</td>
+         <td>wasb://airflow-logs@&lt;blob bucket name&gt;.blob.core.windows.net/logs</td>
+         <td>Used to push logs to the log folder.</td>
+       </tr>
+       <tr>
+         <td>_s3BucketName</td>
+         <td>ci-360-data-local-agent</td>
+         <td>Not Applicable</td>
+         <td>Used for storing DAGs in an S3 bucket or Azure blob.</td>
+       </tr>
+       <tr>
+         <td>_serviceRole</td>
+         <td>Application service role ARN</td>
+         <td>Not Applicable</td>
+         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
+       </tr>
+       <tr>
+         <td>_storageClassName</td>
+         <td>gp2</td>
+         <td>managed-csi</td>
+         <td>Used for PVC creation, which acts as a hard disk inside Kubernetes.</td>
+       </tr>
+       <tr>
+         <td>_workloadIdentityClientId</td>
+         <td>Not Applicable</td>
+         <td>
+           &lt;Azure client ID&gt;<br><br>
+         </td>
+         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
+       </tr>
+       <tr>
+         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT<br>login<br>password</td>
+         <td>Not Applicable</td>
+         <td>
+           login: &lt;storage account name&gt;<br>
+           password: &lt;storage account key&gt;
+         </td>
+         <td>Used to create the Airflow default connection for Azure.</td>
+       </tr>
+       <tr>
+         <td>fleets.existingSecret</td>
+         <td>fleet-credentials</td>
+         <td>fleet-credentials</td>
+         <td>
+           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match the namespace and secret that you created there.
+         </td>
+       </tr>
+       <tr>
+         <td>global.fleets.hostName</td>
+         <td>Required</td>
+         <td>Required</td>
+         <td>External API gateway value for Fleets. This value is provided by SAS in the welcome email.</td>
+       </tr>
+       <tr>
+         <td>global.fleets.tenant</td>
+         <td>Tenant moniker for the tenant</td>
+         <td>Tenant moniker for the tenant</td>
+         <td>Used to authentication with the external API gateway. This value is created by SAS when the tenant is onboarded.<br><br>To find this value, in the user interface, click the user button and select <strong>About</strong>.</td>
+       </tr>
+        <tr>
+         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT | login, password</td>
+         <td>Not Applicable</td>
+         <td>login: '<storage account name>' <br> password: '<storage account key></td>'
+         <td>Used to create the default Airflow connection for Azure. <br><br> To get these values, refer to these locations:<ul><li>_connectionString login = See <strong>&lt;account name&gt;</strong> → <strong>&lt;Blob storage name&gt;</strong></li><li>password = See <strong>&lt;account key&gt;</strong> → <strong>&lt;String Value&gt;</strong></li></ul></td>
+       </tr>
+     </tbody>
+   </table>
 
 ### Configure the Required Tools
 > **NOTE**: Use the Cloud Shell provided by your cloud provider for these steps.
@@ -120,9 +233,9 @@ If the version is not v3.18.1 (or Helm is not installed), install the correct ve
 
 Run the following commands.
 
-> **NOTE:** These steps require you to be logged in to your cloud account (AWS or Azure CLI).
-> 
-> **NOTE:** For Azure: The user should have **contributor** access in order to perform all the steps successfully
+> **NOTE:**
+> 1. These steps require you to be logged in to your cloud account (AWS or Azure CLI).
+> 2. **For Azure**: The user should have **contributor** access in order to perform all the steps successfully
 
 1. Connect to your Kubernetes cluster.
 
@@ -289,122 +402,10 @@ Run the following commands.
    * **AWS:** `values-aws.yaml`
    * **Azure:** `values-azure.yaml`
 
-   Edit the file with a text editor, and update the values by using the parameter names and sample values that are described in the following table.
+   Edit the file with a text editor, and update the values by using the parameter names and sample values that are described in section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/edit/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
 
    >**NOTE**: Post updates, upload the file to cloud console.
   
-   ---
-
-   <table role="table" style="width: 100%;">
-     <colgroup>
-       <col span="1" style="width: 20%;">
-       <col span="1" style="width: 40%;">
-       <col span="1" style="width: 40%;">
-     </colgroup>
-     <thead style="background-color: #0766d1; font-weight: bold;">
-       <tr>
-         <th>Parameter</th>
-         <th>Sample values for - AWS</th>
-         <th>Sample values for - Azure</th>
-         <th>Description</th>
-       </tr>
-     </thead>
-     <tbody>
-       <tr>
-         <td>_agentpool</td>
-         <td>Not Applicable</td>
-         <td>agentpool</td>
-         <td></td>
-       </tr>
-       <tr>
-         <td>_dagsStorageClassName</td>
-         <td>efc-sc</td>
-         <td>azurefile-csi</td>
-         <td>Used for sharing DAGs across different pods.</td>
-       </tr>
-       <tr>
-         <td>_externalGatewayHost</td>
-         <td>Required</td>
-         <td>Required</td>
-         <td>To find this value, sign into SAS Customer Intelligence 360 (with an admin user) and navigate to <strong>General settings</strong> →  <strong>Access Points</strong>.</td>
-       </tr>
-       <tr>
-         <td>_k8sAuthSecretName</td>
-         <td>Required</td>
-         <td>Required</td>
-         <td>
-           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match namespace and secret that you created during that step.
-         </td>
-       </tr>
-       <tr>
-         <td>_remoteBaseLogFolder</td>
-         <td>s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent</td>
-         <td>wasb://airflow-logs@&lt;blob bucket name&gt;.blob.core.windows.net/logs</td>
-         <td>Used to push logs to the log folder.</td>
-       </tr>
-       <tr>
-         <td>_s3BucketName</td>
-         <td>ci-360-data-local-agent</td>
-         <td>Not Applicable</td>
-         <td>Used for storing DAGs in an S3 bucket or Azure blob.</td>
-       </tr>
-       <tr>
-         <td>_serviceRole</td>
-         <td>Application service role ARN</td>
-         <td>Not Applicable</td>
-         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
-       </tr>
-       <tr>
-         <td>_storageClassName</td>
-         <td>gp2</td>
-         <td>managed-csi</td>
-         <td>Used for PVC creation, which acts as a hard disk inside Kubernetes.</td>
-       </tr>
-       <tr>
-         <td>_workloadIdentityClientId</td>
-         <td>Not Applicable</td>
-         <td>
-           &lt;Azure client ID&gt;<br><br>
-         </td>
-         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
-       </tr>
-       <tr>
-         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT<br>login<br>password</td>
-         <td>Not Applicable</td>
-         <td>
-           login: &lt;storage account name&gt;<br>
-           password: &lt;storage account key&gt;
-         </td>
-         <td>Used to create the Airflow default connection for Azure.</td>
-       </tr>
-       <tr>
-         <td>fleets.existingSecret</td>
-         <td>fleet-credentials</td>
-         <td>fleet-credentials</td>
-         <td>
-           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match the namespace and secret that you created there.
-         </td>
-       </tr>
-       <tr>
-         <td>global.fleets.hostName</td>
-         <td>Required</td>
-         <td>Required</td>
-         <td>External API gateway value for Fleets. This value is provided by SAS in the welcome email.</td>
-       </tr>
-       <tr>
-         <td>global.fleets.tenant</td>
-         <td>Tenant moniker for the tenant</td>
-         <td>Tenant moniker for the tenant</td>
-         <td>Used to authentication with the external API gateway. This value is created by SAS when the tenant is onboarded.<br><br>To find this value, in the user interface, click the user button and select <strong>About</strong>.</td>
-       </tr>
-        <tr>
-         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT | login, password</td>
-         <td>Not Applicable</td>
-         <td>login: '<storage account name>' <br> password: '<storage account key></td>'
-         <td>Used to create the default Airflow connection for Azure. <br><br> To get these values, refer to these locations:<ul><li>_connectionString login = See <strong>&lt;account name&gt;</strong> → <strong>&lt;Blob storage name&gt;</strong></li><li>password = See <strong>&lt;account key&gt;</strong> → <strong>&lt;String Value&gt;</strong></li></ul></td>
-       </tr>
-     </tbody>
-   </table>
 
 ### Validate Prerequisite Configuration
 
