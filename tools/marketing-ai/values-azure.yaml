@@ -118,7 +118,6 @@ ci360-satellite:
 
   maiproxy:
     nodeSelector:
-      karpenter.sh/capacity-type: null
       agentpool: *agentpool
     environment:
       MAI_INTERNAL_STORAGE_PREFIX: azure
@@ -127,7 +126,6 @@ ci360-satellite:
   maiorchestra:
     nodeSelector:
       agentpool: *agentpool
-      karpenter.sh/capacity-type: null
 
   serviceAccount:
     annotations:
