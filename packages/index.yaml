@@ -3,7 +3,7 @@ entries:
   sas-marketing-ai:
   - apiVersion: v2
     appVersion: 0.5.0
-    created: "2026-04-15T09:28:38.43079897Z"
+    created: "2026-04-15T09:50:51.730766296Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -18,11 +18,11 @@ entries:
       repository: file://../charts/service
       version: 0.0.43
     description: A Helm chart for native components of SAS CI360 Marketing AI
-    digest: f455aa31c268379f3d45323def01127276dbfa0400cb7c6ea8ad4e9345d62e98
+    digest: 66c2188da33fd714bb31781abdd93f921cb0c5ba2d1a906970fa55504f43d141
     name: sas-marketing-ai
     type: application
     urls:
-    - marketing-ai/sas-marketing-ai-0.5.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/sas-marketing-ai-0.5.0.tgz
     version: 0.5.0
   - apiVersion: v2
     appVersion: 0.4.0
@@ -49,7 +49,7 @@ entries:
     version: 0.4.0
   - apiVersion: v2
     appVersion: 0.3.0
-    created: "2026-04-15T09:28:38.382490281Z"
+    created: "2026-04-15T09:50:51.692395478Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -68,11 +68,11 @@ entries:
     name: sas-marketing-ai
     type: application
     urls:
-    - marketing-ai/sas-marketing-ai-0.3.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/sas-marketing-ai-0.3.0.tgz
     version: 0.3.0
   - apiVersion: v2
     appVersion: 0.3.0
-    created: "2026-04-15T09:28:38.406397666Z"
+    created: "2026-04-15T09:50:51.712075419Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -91,11 +91,11 @@ entries:
     name: sas-marketing-ai
     type: application
     urls:
-    - marketing-ai/sas-marketing-ai-0.4.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/sas-marketing-ai-0.4.0.tgz
     version: 0.3.0
   - apiVersion: v2
     appVersion: 0.2.0
-    created: "2026-04-15T09:28:38.35937417Z"
+    created: "2026-04-15T09:50:51.672839003Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -114,11 +114,11 @@ entries:
     name: sas-marketing-ai
     type: application
     urls:
-    - marketing-ai/sas-marketing-ai-0.2.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/sas-marketing-ai-0.2.0.tgz
     version: 0.2.0
   - apiVersion: v2
     appVersion: 0.1.0
-    created: "2026-04-15T09:28:38.337670083Z"
+    created: "2026-04-15T09:50:51.65426948Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -137,11 +137,11 @@ entries:
     name: sas-marketing-ai
     type: application
     urls:
-    - marketing-ai/sas-marketing-ai-0.1.0.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/sas-marketing-ai-0.1.0.tgz
     version: 0.1.0
   - apiVersion: v2
     appVersion: 0.0.47
-    created: "2026-04-15T09:28:38.315755196Z"
+    created: "2026-04-15T09:50:51.636025704Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -160,7 +160,7 @@ entries:
     name: sas-marketing-ai
     type: application
     urls:
-    - marketing-ai/sas-marketing-ai-0.0.47.tgz
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-ai/sas-marketing-ai-0.0.47.tgz
     version: 0.0.47
   sas-marketing-decisioning:
   - apiVersion: v2
@@ -359,4 +359,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.9.0
-generated: "2026-04-15T09:28:38.293751277Z"
+generated: "2026-04-15T09:50:51.618287958Z"
