@@ -90,6 +90,12 @@ ci360-satellite:
   serviceAccount:
     annotations:
       eks.amazonaws.com/role-arn: *serviceRole
+  maiproxy:
+    nodeSelector:
+      karpenter.sh/capacity-type: on-demand
+  maiorchestra:
+    nodeSelector:
+      karpenter.sh/capacity-type: on-demand
 
 helmtestjob:
   image:
