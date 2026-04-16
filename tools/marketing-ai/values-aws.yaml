@@ -90,6 +90,7 @@ ci360-satellite:
   serviceAccount:
     annotations:
       eks.amazonaws.com/role-arn: *serviceRole
+  #Adjust the nodeSelector as needed. (Avoid Spot Instances)
   maiproxy:
     nodeSelector:
       karpenter.sh/capacity-type: on-demand
