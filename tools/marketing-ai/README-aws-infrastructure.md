@@ -99,7 +99,7 @@ Complete these steps:
 
 ## 5. Additional Components
 
-### Install KEDA
+### KEDA
 
 KEDA (Kubernetes Event-Driven Autoscaling) enables event-driven or auto-scaled workloads
 (for example, Airflow workers).
