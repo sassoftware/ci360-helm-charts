@@ -24,9 +24,7 @@ The purpose of this helm chart is to provide Marketing AI components to be insta
 - Marketing AI Orchestrator
 - Both Marketing AI component use Apache Airflow
 
-For helm repo setup, see [INSTRUCTIONS.md](tools/marketing-ai/INSTRUCTIONS.md).
-
-For detailed instructions for Marketing AI setup, see [README.md](tools/marketing-ai/README.md).
+For Marketing AI setup instructions, see [README.md](tools/marketing-ai/README.md).
 
 ## Marketing Decisioning
 
