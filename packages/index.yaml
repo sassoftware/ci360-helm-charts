@@ -3,7 +3,7 @@ entries:
   sas-marketing-ai:
   - apiVersion: v2
     appVersion: 0.5.0
-    created: "2026-04-16T10:10:12.080515969Z"
+    created: "2026-04-16T10:11:07.179119514Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -18,7 +18,7 @@ entries:
       repository: file://../charts/service
       version: 0.0.43
     description: A Helm chart for native components of SAS CI360 Marketing AI
-    digest: a565bbc70f15962425d1666bfc9faded492e9b485bb0647e185950d2a65f095e
+    digest: 487a83e0ed8f3c7c4ea99617c5990795bcd7329e00384f3912544264b927e550
     name: sas-marketing-ai
     type: application
     urls:
@@ -49,7 +49,7 @@ entries:
     version: 0.4.0
   - apiVersion: v2
     appVersion: 0.3.0
-    created: "2026-04-16T10:10:12.046709176Z"
+    created: "2026-04-16T10:11:07.134368881Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -72,7 +72,7 @@ entries:
     version: 0.3.0
   - apiVersion: v2
     appVersion: 0.3.0
-    created: "2026-04-16T10:10:12.063480799Z"
+    created: "2026-04-16T10:11:07.156828703Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -95,7 +95,7 @@ entries:
     version: 0.3.0
   - apiVersion: v2
     appVersion: 0.2.0
-    created: "2026-04-16T10:10:12.027882637Z"
+    created: "2026-04-16T10:11:07.111757234Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -118,7 +118,7 @@ entries:
     version: 0.2.0
   - apiVersion: v2
     appVersion: 0.1.0
-    created: "2026-04-16T10:10:12.010748808Z"
+    created: "2026-04-16T10:11:07.090041207Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -141,7 +141,7 @@ entries:
     version: 0.1.0
   - apiVersion: v2
     appVersion: 0.0.47
-    created: "2026-04-16T10:10:11.994145741Z"
+    created: "2026-04-16T10:11:07.068571538Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -359,4 +359,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.9.0
-generated: "2026-04-16T10:10:11.977066193Z"
+generated: "2026-04-16T10:11:07.046156332Z"
