@@ -1,5 +1,12 @@
 # Azure Infrastructure Requirements for Local Agent
 
+Review the information in the following sections to set up your Amazon Web Services (AWS) environment for the local agent.
+
+1. [AKS Cluster Requirements](#1-aks-cluster-requirements)
+2. [Configure Container Storage](#2-configure-container-storage)
+3. [Identity and Access Control (Workload Identity)](#3-identity-and-access-control-workload-identity)
+4. [Additional Components](#4-additional-components)
+
 ## 1. AKS Cluster Requirements
 
 | Item | Requirement / Recommendation |
@@ -22,17 +29,16 @@
    (for example, `marketinganalytic`).
 3. Create two node pools: **App Pool** and **System Pool**.
 
-### Node Pool Configuration
+   Use this information to configure the node pools:
 
-| Setting | Value |
-|---------|-------|
-| Minimum node count (App Pool) | 5 |
-| VM size (example) | `Standard_D4s_v5` |
-| Taints | None (default) |
-| Labels | Optional (for scheduling) |
-| Zones | Optional (depends on topology constraints) |
+   | Setting | Value |
+   |---------|-------|
+   | Minimum node count (App Pool) | 5 |
+   | VM size (example) | `Standard_D4s_v5` |
+   | Taints | None (default) |
+   | Labels | Optional (for scheduling) |
+   | Zones | Optional (depends on topology constraints) |
 
----
 
 ## 2. Configure Container Storage
 
@@ -51,12 +57,11 @@ other subfolders as needed inside this base location.
 3. Set the RBAC role **Storage Blob Data Contributor** on each container.
 4. (Recommended) Enable versioning on the storage account.
 
----
 
 ## 3. Identity and Access Control (Workload Identity)
 
-Workload Identity allows Kubernetes pods to securely access Azure resources using managed
-identities via service accounts — without hardcoding credentials.
+Workload Identity allows Kubernetes pods to securely access Azure resources using managed identities
+through service accounts. This enables access without requiring that you hardcode Azure credentials.
 
 ### Managed Identity Setup
 
@@ -77,7 +82,7 @@ identities via service accounts — without hardcoding credentials.
 
 ### Flow of Pod Access to Azure Resources
 
-Follow these steps in order:
+Follow these steps:
 
 1. Map user credentials with the cluster (Entra ID + OIDC).
 2. Assign the managed identity to the Azure storage account.
@@ -85,15 +90,13 @@ Follow these steps in order:
 4. Link each federated credential to the corresponding Kubernetes service account.
 5. Ensure pods use those service accounts to inherit access to Azure resources.
 
----
-
 ## 4. Additional Components
 
 ### Networking — NAT Gateway
 
-- Configure a static public IP for outbound traffic.
-- **Purpose:** If the customer has a datasource on a different cluster or cloud, NAT is required
-  for communication.
+Configure a static public IP for outbound traffic.
+
+A public IP address and NAT enables communication between data sources that might exist in a different cluster or cloud provider.
 
 ### KEDA
 
@@ -101,14 +104,14 @@ Add KEDA to the cluster for event-driven or auto-scaled workloads (for example, 
 
 ### Service Monitoring CRD
 
-Check if the ServiceMonitor CRD exists:
+1. Verify that the ServiceMonitor CRD exists:
 
-```sh
-kubectl get crd servicemonitors.monitoring.coreos.com
-```
+   ```sh
+   kubectl get crd servicemonitors.monitoring.coreos.com
+   ```
 
-If it does not exist, deploy it:
+2. If it does not exist, deploy it:
 
-```sh
-kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-```
+   ```sh
+   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+   ```

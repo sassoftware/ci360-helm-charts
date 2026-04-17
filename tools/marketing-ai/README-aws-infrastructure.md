@@ -1,6 +1,17 @@
 # AWS Infrastructure Requirements for Local Agent
 
+Review the information in the following sections to set up
+your Amazon Web Services (AWS) environment for the local agent.
+
+1. [Kubernetes Cluster Requirements](#1-kubernetes-cluster-requirements)
+2. [Configure Container Storage](#2-configure-container-storage)
+3. [Identity and Access Control (IRSA)](#3-identity-and-access-control-irsa)
+4. [Networking - NAT Gateway](#4-networking--nat-gateway)
+5. [Additional Components](#5-additional-components)
+
 ## 1. Kubernetes Cluster Requirements
+
+Make sure that the Kubernetes cluster meets these requirements:
 
 | Item | Requirement / Recommendation |
 |------|------------------------------|
@@ -16,10 +27,12 @@
 
 ### Cluster Guidelines
 
+Follow these guidelines when you set up the cluster:
+
 1. Set the default size of the cluster based on the size of your data volumes.
 2. Configure one or more local storage volumes that contain your data.
-   Use the S3 service to create a bucket to store the data (for example, `ci-360-data-us-east-1`).
-   Then, create a folder in this bucket for logs (for example, `ci-360-data-us-east-1\logs`).
+   1. Use the S3 service to create a bucket to store the data (for example, `ci-360-data-us-east-1`).
+   2. Create a folder in this bucket for logs (for example, `ci-360-data-us-east-1\logs`).
 3. Make sure that you set the following IAM permissions:
    1. For the **cluster's IAM role**, select the following policies:
       * `AmazonEKSBlockStoragePolicy`
@@ -31,11 +44,9 @@
       * `AmazonEKS_CNI_Policy`
       * `AmazonEKSWorkerNodePolicy`
 
----
-
 ## 2. Configure Container Storage
 
-This storage location is the base location used by the local agent. The application creates
+This storage location is the base location that is used by the local agent. The application creates
 other subfolders as needed inside this base location.
 
 1. Create an S3 bucket. Name the bucket using this pattern:
@@ -43,25 +54,22 @@ other subfolders as needed inside this base location.
 2. Create a folder in the bucket for logs (for example, `ci-360-data-test-us-east-1\logs`).
 3. (Recommended) Enable bucket versioning.
 
----
-
 ## 3. Identity and Access Control (IRSA)
 
 IRSA (IAM Roles for Service Accounts) allows Kubernetes pods to securely access AWS services
-using IAM roles via service accounts — without hardcoding AWS credentials.
-
-> For application role creation details, follow the internal guide:
-> **AWS cluster creation steps → Create a Role for the application to be used**
+using the IAM roles in service accounts. This enables access without requiring that you hardcode
+AWS credentials.
 
 ### IRSA Setup Steps
 
-| Step | Item | Description |
-|------|------|-------------|
-| 1 | OIDC Provider | Ensure your EKS cluster is associated with an OIDC provider. Required only once per cluster. |
-| 2 | IAM Role with Trust Policy | Create an IAM role with a trust relationship that allows the EKS OIDC provider to assume the role. |
-| 3 | Kubernetes Service Account (KSA) | Create a Kubernetes Service Account annotated with the IAM role ARN. |
-| 4 | IAM Policy | Attach the necessary IAM permissions (for example, `s3:GetObject`, `secretsmanager:GetSecretValue`) to the IAM role. |
-| 5 | Pod Spec | Ensure your Airflow or microservice pods are configured to use the correct KSA. |
+Configure these parts, in order:
+
+1. OIDC provider. Ensure your EKS cluster is associated with an OIDC provider. Required only once per cluster.
+2. IAM Role with Trust Policy. Create an IAM role with a trust relationship that allows the EKS OIDC provider to assume the role.
+3. Kubernetes Service Account (KSA). Create a Kubernetes Service Account annotated with the IAM role ARN.
+4. IAM Policy. Attach the necessary IAM permissions (for example, `s3:GetObject`, `secretsmanager:GetSecretValue`) to the IAM role.
+5. Pod Spec. Ensure your Airflow or microservice pods are configured to use the correct KSA.
+
 
 ### IAM Permissions Required
 
@@ -73,15 +81,13 @@ using IAM roles via service accounts — without hardcoding AWS credentials.
 | `s3:ListBucket` | List contents of S3 bucket |
 | `secretsmanager:GetSecretValue` | Read secrets from AWS Secrets Manager |
 
----
+
 
 ## 4. Networking — NAT Gateway
 
-- Configure a NAT Gateway with a static public IP for outbound traffic.
-- **Purpose:** If the customer has a datasource on a different cluster or cloud, NAT is required
-  for communication.
+Configure a NAT Gateway with a static public IP for outbound traffic. The NAT gateway enables communication between data sources that might exist in a different cluster or cloud provider.
 
-### Steps to Add NAT Gateway
+Complete these steps:
 
 1. In the AWS Console, navigate to **VPC → NAT Gateways**.
 2. Click **Create NAT Gateway**.
@@ -90,7 +96,6 @@ using IAM roles via service accounts — without hardcoding AWS credentials.
 5. Update the **route table** of the private subnets to route `0.0.0.0/0` traffic through the NAT Gateway.
 6. Verify outbound connectivity from the cluster nodes.
 
----
 
 ## 5. Additional Components
 
@@ -99,30 +104,36 @@ using IAM roles via service accounts — without hardcoding AWS credentials.
 KEDA (Kubernetes Event-Driven Autoscaling) enables event-driven or auto-scaled workloads
 (for example, Airflow workers).
 
-#### Steps to Install KEDA
+1. Install KEDA with these commands:
 
-```sh
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm install keda kedacore/keda --namespace keda --create-namespace
-```
+   ```sh
+   helm repo add kedacore https://kedacore.github.io/charts
+   ```
 
-Verify the installation:
+   ```sh
+   helm repo update
+   ```
 
-```sh
-kubectl get pods -n keda
-```
+   ```sh
+   helm install keda kedacore/keda --namespace keda --create-namespace
+   ```
+
+2. Verify the installation:
+
+   ```sh
+   kubectl get pods -n keda
+   ```
 
 ### Service Monitoring CRD
 
-Check if the ServiceMonitor CRD exists:
+1. Verify that the ServiceMonitor CRD exists:
 
-```sh
-kubectl get crd servicemonitors.monitoring.coreos.com
-```
+   ```sh
+   kubectl get crd servicemonitors.monitoring.coreos.com
+   ```
 
-If it does not exist, deploy it:
+2. If it does not exist, deploy it:
 
-```sh
-kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-```
+   ```sh
+   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+   ```

@@ -4,7 +4,10 @@ On this page:
 
 * [Overview](#overview)
 * [Prerequisites](#prerequisites)
-* [Installation](#installation)
+* [Deploy the Local Agent](#deploy-the-local-agent)
+* [Contributing](#contributing)
+* [License](#license)
+* [Additional Resources](#additional-resources)
 
 ## Overview
 
@@ -55,11 +58,10 @@ prerequisites specific to your cloud provider, see:
 - [Azure Infrastructure Requirements](./README-azure-infrastructure.md)
 
 ### Collect The Required Deployment Information
-As per the cloud provider on which the deployment will be done, please collect the information for attributes mentioned below.
+Based on the cloud provider that you will deploy the local agent, find the corresponding values in the table below. This
+information is used to set configuration values later in the deployment process.
 
----
-
-   <table role="table" style="width: 100%;">
+<table role="table" style="width: 100%;">
      <colgroup>
        <col span="1" style="width: 20%;">
        <col span="1" style="width: 40%;">
@@ -164,82 +166,82 @@ As per the cloud provider on which the deployment will be done, please collect t
         <tr>
          <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT | login, password</td>
          <td>Not Applicable</td>
-         <td>login: '<storage account name>' <br> password: '<storage account key></td>'
+         <td>login: '&lt;storage account name&gt;' <br> password: '&lt;storage account key&gt;'</td>
          <td>Used to create the default Airflow connection for Azure. <br><br> To get these values, refer to these locations:<ul><li>_connectionString login = See <strong>&lt;account name&gt;</strong> → <strong>&lt;Blob storage name&gt;</strong></li><li>password = See <strong>&lt;account key&gt;</strong> → <strong>&lt;String Value&gt;</strong></li></ul></td>
        </tr>
      </tbody>
    </table>
 
 ### Configure the Required Tools
-> **NOTE**: Use the Cloud Shell provided by your cloud provider for these steps.
->
-> AWS CloudShell uses Bash by default.
-> 
-> In Azure Cloud Shell, select Bash as the default shell.
->
-> <strong>Helm v3.18.1 is required for this deployment.</strong>
 
-Check the installed Helm version:
-```sh
+Use one of the following options, depending on the deployment target:
+
+* Cloud deployment:
+  1. Make sure that you are using Bash as the shell environment.
+        * AWS CloudShell uses Bash by default.
+        * In Azure Cloud Shell, select Bash as the default shell.
+  2. Check the installed Helm version:
+
+     ```sh
      helm version --short
-```
-The output must start with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+     ```
+     **Important:** Helm v3.18.1 is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
 
-If the version is not v3.18.1 (or Helm is not installed), install the correct version using the following commands:
-```sh
-   curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-```
-```sh
-   chmod 700 get_helm.sh
-```
-```sh
-   DESIRED_VERSION=v3.18.1 ./get_helm.sh
-```
+     If the version is not v3.18.1 (or Helm is not installed), use the following commands to install the correct version:
+  
+     ```sh
+     curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+     ```
 
-> <strong>NOTE: The following steps of this section should be used ONLY if you are not using the cloud provider’s console (for example, on a local workstation or VM).</strong>
-1. Verify that you have the following tools installed, with the minimum supported versions:
-   | Tool | Minimum Version |
-   |------|-----------------|
-   | Helm | = 3.18.1 |
-   | kubectl | >= v1.27.0 |
-   | AWS CLI | >= 2.18.1 |
-   | Azure CLI | >= 2.83.0 |
+     ```sh
+     chmod 700 get_helm.sh
+     ```
+   
+     ```sh
+     DESIRED_VERSION=v3.18.1 ./get_helm.sh
+     ```
 
-2. If any of the required tools are not installed or are below the minimum version, use the `setup-prerequisites-tools.sh` script to install them:
+* Local deployment or virtual machine:
+   1. Verify that you have the following tools installed, with the minimum supported versions:
+      | Tool | Minimum Version |
+      |------|-----------------|
+      | Helm | = 3.18.1 |
+      | kubectl | >= v1.27.0 |
+      | AWS CLI | >= 2.18.1 |
+      | Azure CLI | >= 2.83.0 |
 
-   1. Download the `setup-prerequisites-tools.sh` script from this location: [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
+   2. If any of the required tools are not installed or are below the minimum version, use the `setup-prerequisites-tools.sh` script to install them:
 
-   2. Change the permissions to make the script executable:
+      1. Download the `setup-prerequisites-tools.sh` script from this location:
+         [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
 
-      ```sh
-      chmod +x setup-prerequisites-tools.sh
-      ```
+      2. Change the permissions to make the script executable:
 
-   3. Run the script for the appropriate cloud provider:
+         ```sh
+         chmod +x setup-prerequisites-tools.sh
+         ```
 
-        ```sh
-        ./setup-prerequisites-tools.sh --cloud < aws | azure>
-        ```
+      3. Run the script for the appropriate cloud provider:
 
-      To view the usage options, run this command:
+         ```sh
+         ./setup-prerequisites-tools.sh --cloud < aws | azure>
+         ```
 
-       ```sh
-       ./setup-prerequisites-tools.sh --help
-       ```
+         To view the usage options, run this command:
 
-   4. Verify that the script completes successfully and all tools are installed with the correct versions.
+         ```sh
+         ./setup-prerequisites-tools.sh --help
+         ```
+
+      4. Verify that the script completes successfully and all tools are installed with the correct versions.
 
 ### Configure the Kubernetes Environment
 
-Run the following commands.
+1. Sign in to your cloud account (AWS or the Azure CLI).
+2. (Azure only) Make sure that you have **contributor** access.
+3. Connect to your Kubernetes cluster.
 
-> **NOTE:**
-> 1. These steps require you to be logged in to your cloud account (AWS or Azure CLI).
-> 2. **For Azure**: The user should have **contributor** access in order to perform all the steps successfully
-
-1. Connect to your Kubernetes cluster.
-
-   * **AWS:**
+   * **AWS:** Run the following command:
 
      ```sh
      aws eks update-kubeconfig --name <cluster-name> --region <region>
@@ -251,34 +253,33 @@ Run the following commands.
      aws eks update-kubeconfig --name aws-cluster-name --region us-east-1
      ```
 
-   * **Azure:**
+   * **Azure:** Complete these steps:
 
-     First, enable local accounts on the AKS cluster:
+        1. Enable local accounts on the AKS cluster:
 
-     ```sh
-     az aks update -g <resource-group> -n <cluster-name> --enable-local-accounts
-     ```
+           ```sh
+           az aks update -g <resource-group> -n <cluster-name> --enable-local-accounts
+           ```
 
-     For example:
+           For example:
 
-     ```sh
-     az aks update -g azure-resource-group-name -n azure-cluster-name --enable-local-accounts
-     ```
+           ```sh
+           az aks update -g azure-resource-group-name -n azure-cluster-name --enable-local-accounts
+           ```
 
-     Then, get the cluster credentials:
+        2. Get the cluster credentials:
 
-     ```sh
-     az aks get-credentials -g <resource-group> -n <cluster-name> --admin --overwrite-existing
+           ```sh
+           az aks get-credentials -g <resource-group> -n <cluster-name> --admin --overwrite-existing
+           ```
 
-     ```
+           For example:
 
-     For example:
+           ```sh
+           az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
+           ```
 
-     ```sh
-     az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
-     ```
-
-2. Create a namespace:
+4. Create a namespace:
 
    ```sh
    kubectl create namespace <your-namespace>
@@ -290,22 +291,26 @@ Run the following commands.
    kubectl create namespace user-deployment-namespace
    ```
 
-3. Tag the namespace (recommended):
+5. Tag the namespace (as a best practice):
 
    ```sh
    kubectl label namespace <namespace> name=<namespace> --overwrite
    ```
 
-4. <strong>Add your namespace to the Managed Identity (ONLY for Azure cloud)</strong>
+6. (Azure only) Add your namespace to the Managed Identity definition.
 
-     For Azure deployments that use Workload Identity, you must create federated credentials that bind the Kubernetes service accounts in your namespace to the Azure Managed Identity.
+     For Azure deployments that use Workload Identity, you must create federated credentials that bind the Kubernetes
+     service accounts in your namespace to the Azure Managed Identity.
 
-     Replace the placeholders in the examples below:
+     The examples below include placeholders, which you should replace based on this information:
 
-     1. < your-namespace >: the namespace you created in step 2
-     2. < azure reource group name >: the resource group that contains the Managed Identity
-     3. "--issuer": use the issuer for your AKS cluster (region and IDs will differ)
+     | Placeholder | Description |
+     |:------------|:------------|
+     | < your-namespace > | the namespace you created in step 2 |
+     | < azure reource group name > | the resource group that contains the Managed Identity |
+     | "--issuer" | use the issuer for your AKS cluster (the region and IDs will differ) |
 
+     Use these examples:
 
      ```sh
      az identity federated-credential create \
@@ -315,9 +320,7 @@ Run the following commands.
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-api-server" \
        --audience "api://AzureADTokenExchange"
-     
      ```
-
      
      ```sh
      az identity federated-credential create \
@@ -327,9 +330,7 @@ Run the following commands.
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:ci360-satellite" \
        --audience "api://AzureADTokenExchange"
-     
      ```
-
      
      ```sh
      az identity federated-credential create \
@@ -339,59 +340,61 @@ Run the following commands.
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-worker" \
        --audience "api://AzureADTokenExchange"
-     
      ```
 
 
-5. Create Kubernetes secrets for these values:
-    * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
-    * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
+8. Create Kubernetes secrets for these values:
+   * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
+   * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
->**NOTE**: Make sure to use the following naming convention for API user "API-<tenant_moniker>-mai-<user_id>".
+     >**Note**: Make sure to use the following naming convention for API user "API-<tenant_moniker>-mai-<user_id>".
 
    Use a command like this example:
 
    ```sh
    kubectl create secret generic <secret-name>  -n <namespace> \
-     --from-literal=tenant-id=<the general access point tenant ID> \
-     --from-literal=secret=<the general access point client secret> \
-     --from-literal=username=<the API user definition's user ID> \
-     --from-literal=password=<the API user definition's secret> \
-     --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
+      --from-literal=tenant-id=<the general access point tenant ID> \
+      --from-literal=secret=<the general access point client secret> \
+      --from-literal=username=<the API user definition's user ID> \
+      --from-literal=password=<the API user definition's secret> \
+      --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
 
 ### Set up the Helm repo
    
- 1. Get the public helm repo & check available versions
-         
-     
-   ```sh
-        # Add the repo
-        helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
-   ```
-   ```sh
-        # Update the repo
-        helm repo update
-   ```
-   ```sh
-        # Verify that the 'sas-marketing-ai' chart is available
-        helm search repo ci360-helm-charts/sas-marketing-ai
-   ```
+ 1. Get the public helm repo and check the available versions:
 
- To inspect the chart contents an Optional Step
+    ```sh
+    # Add the repo
+    helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
+    ```
 
-   ```sh
-        # Show the README for a specific chart version
-        helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-   ```
-   ```sh
-        # Show the default values for a specific chart version
-        helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-   ```
-   ```sh  
-        # Show the chart metadata for a specific chart version
-        helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-   ```
+    ```sh
+    # Update the repo
+    helm repo update
+    ```
+
+    ```sh
+    # Verify that the 'sas-marketing-ai' chart is available
+    helm search repo ci360-helm-charts/sas-marketing-ai
+    ```
+
+    Optionally, you can inspect the chart contents by running these commands:
+
+    ```sh
+    # Show the README for a specific chart version
+    helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+    ```
+
+    ```sh
+    # Show the default values for a specific chart version
+    helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+    ```
+
+    ```sh  
+    # Show the chart metadata for a specific chart version
+    helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+    ```
 
 2. Set configuration values.
 
@@ -402,9 +405,10 @@ Run the following commands.
    * **AWS:** `values-aws.yaml`
    * **Azure:** `values-azure.yaml`
 
-   Edit the file with a text editor, and update the values by using the parameter names and sample values that are described in section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/edit/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
+ 3. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
+   in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/edit/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
 
-   >**NOTE**: Post updates, upload the file to cloud console.
+ 4. Upload the modified file through the cloud console.
   
 
 ### Validate Prerequisite Configuration
@@ -413,9 +417,8 @@ After the prerequisite steps are complete, run the validation tool to verify you
 
 > **Important:** Do not proceed with deployment until all errors are resolved.
 
-1. Download the prerequisite validation script from this location:  
+1. Download the prerequisite validation script (`validate-configuration.sh`) from this location:<br>
    [https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai](https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai)  
-   (file name: `validate-configuration.sh`)
 
 2. Upload the script to your cloud console.
 
@@ -433,57 +436,60 @@ After the prerequisite steps are complete, run the validation tool to verify you
 
    Here is an examples:
 
-     ```sh
-     ./validate-configuration.sh --cloud aws --values ./values-< aws | azure >.yaml --namespace user-deployment-namespace
-     ```
+   ```sh
+   ./validate-configuration.sh --cloud aws --values ./values-< aws | azure >.yaml --namespace user-deployment-namespace
+   ```
 
 
-### Deploy the Local Agent
+## Deploy the Local Agent
 
-1. Deploy the local agent through Helm:
+### Run the Deployment Helm Script
 
-```sh
-helm upgrade --install <release name> ci360-helm-charts/sas-marketing-ai \
-  --version <CHART VERSION from section Set up the Helm repo> \
-  --namespace <namespace created in Configure the Kubernetes Environment> \
-  --values <values.yaml> \
-  --timeout 20m
-```
+1. Deploy the local agent through Helm.
 
-For example:
+   > **Note:** Do not use the `--wait` or `--atomic` options with this chart. These options can prevent the post‑install Jobs from
+     running, which are required to complete the deployment.
 
-```sh
-helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
-  --version 0.4.0 \
-  --namespace user-deployment-namespace \
-  --values ./values-azure.yaml \
-  --timeout 20m
-```
- 
-> **Note:**
-> * The release name should match the service account naming pattern.
-> * For **AWS**, an example is provided in the *IAM Role for Application* section.
-> * For **Azure**, ensure the Kubernetes service account is annotated with the Azure Workload Identity client ID: `azure.workload.identity/client-id=<workload-identity-client-id>`.
->
-> **Deployment command:**
-> Do not use the `--wait` or `--atomic` options with this chart.  
-> These options can prevent the post‑install Jobs from running, which are required to complete the deployment.
->
-> If an error occurs during install or upgrade, you must manually roll back to a previous successful release.  
-> For example:
->
-> ```sh
-> # List previous revisions
-> helm history <release name> -n <namespace>
->
-> # Roll back to a known good revision (for example, revision 3)
-> helm rollback <release name> 3 -n <namespace>
-> ```
+   ```sh
+   helm upgrade --install <release name> ci360-helm-charts/sas-marketing-ai \
+     --version <CHART VERSION from section Set up the Helm repo> \
+     --namespace <namespace created in Configure the Kubernetes Environment> \
+     --values <values.yaml> \
+     --timeout 20m
+   ```
+
+   The release name should match the pattern for the service account name.
+   * For **AWS**, an example is provided in the *IAM Role for Application* section.
+   * For **Azure**, ensure the Kubernetes service account is annotated with the client ID for the Azure Workload
+       Identity, like: `azure.workload.identity/client-id=<workload-identity-client-id>`.
+
+   For example:
+
+   ```sh
+   helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
+     --version 0.4.0 \
+     --namespace user-deployment-namespace \
+     --values ./values-azure.yaml \
+     --timeout 20m
+   ```
+
+   If an error occurs during install or upgrade, you must manually roll back to a previous successful release.
+   For example:
+
+   ```sh
+   # List previous revisions
+   helm history <release name> -n <namespace>
+   
+   # Roll back to a known good revision (for example, revision 3)
+   helm rollback <release name> 3 -n <namespace>
+   ```
 
 2. Wait for pods to start before you proceed:
-```sh
-kubectl -n <namespace created in Configure the Kubernetes Environment> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
-```
+
+   ```sh
+   kubectl -n <namespace created in Configure the Kubernetes Environment> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
+   ```
+
 ### Run Helm Tests and Verify Deployment
 
 1. Run the Helm tests by entering this command:
@@ -498,26 +504,25 @@ kubectl -n <namespace created in Configure the Kubernetes Environment> wait --fo
    helm test ci360-analytic-mai --namespace my-namespace-1 --timeout 20m &
    ```
 
-> **Note:** While the above Job is in progress, inspect the logs for errors, and repeat the previous steps (if necessary) until the deployment is successful.
-> 
-> To inspect the Job logs, run:
-> 
-> ```sh
-> kubectl logs -n <namespace> -l job-name=<job-name> -f
-> ```
-> 
-> For example:
-> 
-> ```sh
-> kubectl logs -n my-namespace-1 -l job-name=local-agent-test-job -f
-> ```
-> 
-> The `-f` option follows the logs in real time until you interrupt it (Ctrl+C).
+   > **Note:** While the above Job is in progress, inspect the logs for errors, and repeat the previous steps (if necessary) until the deployment is successful.
+   > 
+   > To inspect the Job logs, run:
+   > 
+   > ```sh
+   > kubectl logs -n <namespace> -l job-name=<job-name> -f
+   > ```
+   > 
+   > For example:
+   > 
+   > ```sh
+   > kubectl logs -n my-namespace-1 -l job-name=local-agent-test-job -f
+   > ```
+   > 
+   > The `-f` option follows the logs in real time until you interrupt it (Ctrl+C).
 
-Verify that all of these items are true:
-
-* All pods are in the running state.
-* There are no CrashLoopBackOff errors.
+2. Verify that all of these items are true:
+   * All pods are in the running state.
+   * There are no CrashLoopBackOff errors.
 
 <!--
 ### New CI360 customer
