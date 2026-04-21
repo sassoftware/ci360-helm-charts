@@ -440,7 +440,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
 4. Run the prerequisite validation script. For example:
 
    ```sh
-   ./validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace from step-1.4>
+   ./validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace>
    ```
 
    Here is an examples:
