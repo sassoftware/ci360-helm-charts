@@ -317,7 +317,7 @@ Use one of the following options, depending on the deployment target:
      az identity federated-credential create \
        --name "api-server-sa-<your-namespace>" \
        --identity-name "<user created Managed Identity Name>" \
-       --resource-group "<azure reource group name>" \
+       --resource-group "<azure resource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-api-server" \
        --audience "api://AzureADTokenExchange"
@@ -327,7 +327,7 @@ Use one of the following options, depending on the deployment target:
      az identity federated-credential create \
        --name "orchestrator-sa-<your-namespace>" \
        --identity-name "<user created Managed Identity Name>" \
-       --resource-group "<azure reource group name>" \
+       --resource-group "<azure resource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:ci360-satellite" \
        --audience "api://AzureADTokenExchange"
@@ -337,7 +337,7 @@ Use one of the following options, depending on the deployment target:
      az identity federated-credential create \
        --name "airflow-worker-federated-credential-<your-namespace>" \
        --identity-name "<user created Managed Identity Name>" \
-       --resource-group "<azure reource group name>" \
+       --resource-group "<azure resource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
        --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-worker" \
        --audience "api://AzureADTokenExchange"
