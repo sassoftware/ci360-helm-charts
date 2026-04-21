@@ -63,9 +63,10 @@ information is used to set configuration values later in the deployment process.
 
 <table role="table" style="width: 100%;">
      <colgroup>
+       <col span="1" style="width: 10%;">
        <col span="1" style="width: 20%;">
-       <col span="1" style="width: 40%;">
-       <col span="1" style="width: 40%;">
+       <col span="1" style="width: 20%;">
+       <col span="1" style="width: 50%;">
      </colgroup>
      <thead style="background-color: #0766d1; font-weight: bold;">
        <tr>
