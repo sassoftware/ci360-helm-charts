@@ -33,8 +33,8 @@ Review the information in the following sections to set up your Amazon Web Servi
 
    | Setting | Value |
    |---------|-------|
-   | Minimum node count (App Pool) | 5 |
-   | VM size (example) | `Standard_D4s_v5` |
+   | Minimum node count (App Pool) | 8 |
+   | VM size (recommended) | `Standard_D4s_v5` |
    | Taints | None (default) |
    | Labels | Optional (for scheduling) |
    | Zones | Optional (depends on topology constraints) |
@@ -68,17 +68,6 @@ through service accounts. This enables access without requiring that you hardcod
 1. Create a managed identity named `aks-workload-identity-airflow`.
 2. Assign the role **Storage Blob Data Contributor** to this identity on the target storage account.
 3. Assign the workload identity to the storage account.
-
-### Federated Credentials
-
-1. In the managed identity, go to **Settings → Federated credentials**.
-2. Create federated credentials for each of the following Kubernetes service accounts:
-
-   | Service Account | Notes |
-   |----------------|-------|
-   | `worker` | Airflow worker pods |
-   | `api-server` | API server pods |
-   | `ci360-satellite` | Attached to proxy + orchestrator pods |
 
 ### Flow of Pod Access to Azure Resources
 
