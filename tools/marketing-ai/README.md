@@ -81,7 +81,13 @@ information is used to set configuration values later in the deployment process.
          <td>_agentpool</td>
          <td>Not Applicable</td>
          <td>agentpool</td>
-         <td></td>
+         <td>Traverse to AKS cluster -> settings -> node pools</td>
+       </tr>
+       <tr>
+            <td> _storageAccountName</td>
+            <td>Not Applicable</td>
+            <td>Required</td>
+            <td>Azure Storage Account service</td> 
        </tr>
        <tr>
          <td>_dagsStorageClassName</td>
@@ -186,7 +192,7 @@ Use one of the following options, depending on the deployment target:
      ```sh
      helm version --short
      ```
-     **Important:** Helm v3.18.1 is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+     **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
 
      If the version is not v3.18.1 (or Helm is not installed), use the following commands to install the correct version:
   
@@ -206,7 +212,7 @@ Use one of the following options, depending on the deployment target:
    1. Verify that you have the following tools installed, with the minimum supported versions:
       | Tool | Minimum Version |
       |------|-----------------|
-      | Helm | = 3.18.1 |
+      | Helm | = 3.18.XX or 3.19.XX |
       | kubectl | >= v1.27.0 |
       | AWS CLI | >= 2.18.1 |
       | Azure CLI | >= 2.83.0 |
@@ -216,13 +222,15 @@ Use one of the following options, depending on the deployment target:
       1. Download the `setup-prerequisites-tools.sh` script from this location:
          [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
 
-      2. Change the permissions to make the script executable:
+      2. In case you are using cloud shell, you will need to upload the file to cloudshell.
+      
+      3. Change the permissions to make the script executable:
 
          ```sh
          chmod +x setup-prerequisites-tools.sh
          ```
 
-      3. Run the script for the appropriate cloud provider:
+      4. Run the script for the appropriate cloud provider:
 
          ```sh
          ./setup-prerequisites-tools.sh --cloud < aws | azure>
@@ -234,7 +242,7 @@ Use one of the following options, depending on the deployment target:
          ./setup-prerequisites-tools.sh --help
          ```
 
-      4. Verify that the script completes successfully and all tools are installed with the correct versions.
+      5. Verify that the script completes successfully and all tools are installed with the correct versions.
 
 ### Configure the Kubernetes Environment
 
@@ -308,7 +316,7 @@ Use one of the following options, depending on the deployment target:
      | Placeholder | Description |
      |:------------|:------------|
      | < your-namespace > | the namespace you created in step 2 |
-     | < azure reource group name > | the resource group that contains the Managed Identity |
+     | < azure resource group name > | the resource group that contains the Managed Identity |
      | "--issuer" | use the issuer for your AKS cluster (the region and IDs will differ) |
 
      Use these examples:
