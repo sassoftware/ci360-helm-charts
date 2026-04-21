@@ -27,7 +27,7 @@
 # | `--retries <n>` | Number of retry attempts (default: 3) |
 # | `--retry-delay <s>` | Delay between retries in seconds (default: 3) |
 # | `--kubectl-version <v>` | Specific kubectl version to install (default: v1.33.0) |
-# | `--helm-version <v>` | Specific helm version to install (default: v3.18.1) |
+# | `--helm-version <v>` | Specific helm version to install (default: v3.18.XX or v3.19.XX) |
 
 # ## Examples
 
@@ -58,9 +58,6 @@
 
 # # Increase retries for slow connections
 # ./setup-prerequisites-tools.sh --cloud aws --retries 5 --retry-delay 10
-
-# # Install specific versions
-# ./setup-prerequisites-tools.sh --cloud aws --kubectl-version v1.33.0 --helm-version v3.18.1
 # ```
 
 # ## Exit Codes
@@ -193,9 +190,11 @@ CLOUD_PROVIDER=""
 
 # Minimum required versions
 MIN_KUBECTL_VERSION="1.27.0"
-MIN_HELM_VERSION="3.18.1"
+MIN_HELM_VERSION="3.18.0"
+MAX_HELM_VERSION="3.19.999"
 MIN_AWS_CLI_VERSION="2.18.1"
 MIN_AZURE_CLI_VERSION="2.83.0"
+MIN_KEDA_VERSION="2.19.0"
 
 # Pinned versions for installation
 KUBECTL_VERSION="v1.33.0"
@@ -203,6 +202,8 @@ HELM_REQUIRED_VERSION="3.18.1"
 HELM_VERSION="${HELM_REQUIRED_VERSION}"
 AWS_CLI_VERSION="2.18.1"
 AZURE_CLI_VERSION="2.83.0"
+KEDA_VERSION="2.19.0"
+KEDA_NAMESPACE="keda"
 
 # Default options
 SKIP_AUTOCOMPLETE=false
@@ -310,6 +311,24 @@ get_tool_version() {
       
       version="${version:-0.0.0}"
       ;;
+    keda)
+      # Check if KEDA is installed in the cluster
+      if ! command_exists kubectl; then
+        version="0.0.0"
+      elif kubectl get namespace "$KEDA_NAMESPACE" &>/dev/null; then
+        # Try to get KEDA operator version from deployment
+        version=$(kubectl get deployment keda-operator -n "$KEDA_NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        
+        # Fallback: check keda-operator-metrics-apiserver
+        if [[ -z "$version" || "$version" == "0.0.0" ]]; then
+          version=$(kubectl get deployment keda-operator-metrics-apiserver -n "$KEDA_NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        fi
+        
+        version="${version:-0.0.0}"
+      else
+        version="0.0.0"
+      fi
+      ;;
   esac
   
   echo "$version"
@@ -377,6 +396,89 @@ retry() {
 }
 
 #######################################
+# Install KEDA (Kubernetes Event Driven Autoscaler)
+#######################################
+install_keda() {
+  log_info "Installing KEDA ${KEDA_VERSION} (minimum: ${MIN_KEDA_VERSION})..."
+  
+  if [[ "$DRY_RUN" == true ]]; then
+    log_dry_run "Would install KEDA ${KEDA_VERSION} to namespace ${KEDA_NAMESPACE}"
+    return 0
+  fi
+  
+  # Verify kubectl and helm are available
+  if ! command_exists kubectl; then
+    log_error "kubectl is required to install KEDA"
+    return 1
+  fi
+  
+  if ! command_exists helm; then
+    log_error "helm is required to install KEDA"
+    return 1
+  fi
+  
+  # Check cluster connectivity
+  if ! kubectl cluster-info &>/dev/null; then
+    log_error "Cannot connect to Kubernetes cluster. Please configure kubectl first."
+    return 1
+  fi
+  
+  # Add KEDA Helm repository
+  log_info "Adding KEDA Helm repository..."
+  if ! helm repo add kedacore https://kedacore.github.io/charts &>/dev/null; then
+    log_warn "KEDA repo already exists, updating..."
+  fi
+  
+  retry helm repo update
+  
+  # Create namespace if it doesn't exist
+  if ! kubectl get namespace "$KEDA_NAMESPACE" &>/dev/null; then
+    log_info "Creating namespace: ${KEDA_NAMESPACE}"
+    kubectl create namespace "$KEDA_NAMESPACE"
+  fi
+  
+  # Install or upgrade KEDA
+  log_info "Installing KEDA ${KEDA_VERSION} via Helm..."
+  if helm list -n "$KEDA_NAMESPACE" 2>/dev/null | grep -q "^keda"; then
+    log_info "KEDA already installed, upgrading..."
+    retry helm upgrade keda kedacore/keda \
+      --namespace "$KEDA_NAMESPACE" \
+      --version "$KEDA_VERSION" \
+      --wait \
+      --timeout 5m
+  else
+    retry helm install keda kedacore/keda \
+      --namespace "$KEDA_NAMESPACE" \
+      --version "$KEDA_VERSION" \
+      --wait \
+      --timeout 5m
+  fi
+  
+  # Wait for KEDA operator to be ready
+  log_info "Waiting for KEDA operator to be ready..."
+  if ! kubectl wait --for=condition=available \
+    --timeout=180s \
+    deployment/keda-operator \
+    deployment/keda-operator-metrics-apiserver \
+    -n "$KEDA_NAMESPACE" 2>/dev/null; then
+    log_warn "KEDA operator deployment wait timed out, checking manually..."
+    
+    # Check if pods are running
+    local ready_pods
+    ready_pods=$(kubectl get pods -n "$KEDA_NAMESPACE" --field-selector=status.phase=Running 2>/dev/null | grep -c "keda-operator" || echo "0")
+    
+    if [[ "$ready_pods" -lt 2 ]]; then
+      log_error "KEDA operator pods are not running"
+      kubectl get pods -n "$KEDA_NAMESPACE"
+      return 1
+    fi
+  fi
+  
+  log_success "KEDA ${KEDA_VERSION} installed successfully"
+  return 0
+}
+
+#######################################
 # Install kubectl (cross-platform)
 #######################################
 install_kubectl() {
@@ -429,27 +531,24 @@ install_kubectl() {
 #######################################
 verify_helm_version() {
   if [[ "$DRY_RUN" == true ]]; then
-    log_dry_run "Would verify helm == v${HELM_REQUIRED_VERSION}"
+    log_dry_run "Would verify helm is between v${MIN_HELM_VERSION} and v${MAX_HELM_VERSION}"
     return 0
   fi
 
   if ! command_exists helm; then
     log_error "helm is NOT installed."
     log_error ""
-    log_error "Please install helm v${HELM_REQUIRED_VERSION} manually:"
+    log_error "Please install helm (v${MIN_HELM_VERSION} - v${MAX_HELM_VERSION}) manually:"
     log_error ""
     log_error "  Linux/macOS/WSL:"
-    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-${ARCH}.tar.gz | tar -xz"
+    log_error "    curl -fsSL https://get.helm.sh/helm-v3.18.1-linux-${ARCH}.tar.gz | tar -xz"
     log_error "    sudo mv linux-${ARCH}/helm /usr/local/bin/helm"
     log_error ""
     log_error "  macOS (Homebrew):"
-    log_error "    brew install helm@${HELM_REQUIRED_VERSION}"
+    log_error "    brew install helm"
     log_error ""
     log_error "  Windows (Chocolatey):"
-    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
-    log_error ""
-    log_error "  Windows (Manual):"
-    log_error "    Download from: https://github.com/helm/helm/releases/tag/v${HELM_REQUIRED_VERSION}"
+    log_error "    choco install kubernetes-helm"
     log_error ""
     log_error "  Official docs: https://helm.sh/docs/intro/install/"
     return 1
@@ -458,33 +557,91 @@ verify_helm_version() {
   local installed_ver
   installed_ver=$(get_tool_version helm)
   
-  # Allow minor version match (3.18 == 3.18.1 or 3.18.0 == 3.18.1)
-  local required_major_minor="${HELM_REQUIRED_VERSION%.*}"  # "3.18"
-  local installed_major_minor="${installed_ver%.*}"         # "3.18"
-
-  if [[ "$installed_ver" == "$HELM_REQUIRED_VERSION" ]] || [[ "$installed_major_minor" == "$required_major_minor" ]]; then
-    log_success "helm version verified: v${installed_ver} (required: v${HELM_REQUIRED_VERSION} ✓)"
+  # Extract major.minor from installed version (e.g., "3.18" from "3.18.1")
+  local installed_major_minor="${installed_ver%.*}"  # 3.18
+  
+  # Check if version is in acceptable range: 3.18.x or 3.19.x
+  if [[ "$installed_major_minor" == "3.18" ]] || [[ "$installed_major_minor" == "3.19" ]]; then
+    # Additionally check if it meets minimum patch version for 3.18.x
+    if [[ "$installed_major_minor" == "3.18" ]] && ! version_gte "$installed_ver" "$MIN_HELM_VERSION"; then
+      log_error "helm version v${installed_ver} is below minimum v${MIN_HELM_VERSION}"
+      log_error ""
+      log_error "Acceptable versions: v3.18.0 - v3.19.x"
+      log_error "Please upgrade to at least v${MIN_HELM_VERSION}"
+      return 1
+    fi
+    
+    log_success "helm version verified: v${installed_ver} (acceptable range: v${MIN_HELM_VERSION} - v${MAX_HELM_VERSION} ✓)"
     return 0
   else
     log_error "helm version mismatch!"
     log_error "  Installed : v${installed_ver}"
-    log_error "  Required  : v${HELM_REQUIRED_VERSION}"
+    log_error "  Required  : v${MIN_HELM_VERSION} - v${MAX_HELM_VERSION}"
     log_error ""
-    log_error "Please install the exact required version manually:"
+    log_error "Please install an acceptable version (v3.18.x or v3.19.x) manually:"
     log_error ""
-    log_error "  Linux/macOS/WSL:"
-    log_error "    curl -fsSL https://get.helm.sh/helm-v${HELM_REQUIRED_VERSION}-linux-${ARCH}.tar.gz | tar -xz"
+    log_error "  Linux/macOS/WSL (v3.18.1):"
+    log_error "    curl -fsSL https://get.helm.sh/helm-v3.18.1-linux-${ARCH}.tar.gz | tar -xz"
+    log_error "    sudo mv linux-${ARCH}/helm /usr/local/bin/helm"
+    log_error ""
+    log_error "  Linux/macOS/WSL (v3.19.0):"
+    log_error "    curl -fsSL https://get.helm.sh/helm-v3.19.0-linux-${ARCH}.tar.gz | tar -xz"
     log_error "    sudo mv linux-${ARCH}/helm /usr/local/bin/helm"
     log_error ""
     log_error "  macOS (Homebrew):"
-    log_error "    brew unlink helm && brew install helm@${HELM_REQUIRED_VERSION}"
-    log_error ""
-    log_error "  Windows (Chocolatey):"
-    log_error "    choco install kubernetes-helm --version ${HELM_REQUIRED_VERSION}"
+    log_error "    brew install helm"
     log_error ""
     log_error "  Official docs: https://helm.sh/docs/intro/install/"
     return 1
   fi
+}
+
+#######################################
+# Verify KEDA Installation
+#######################################
+verify_keda() {
+  if [[ "$DRY_RUN" == true ]]; then
+    log_dry_run "Would verify KEDA >= v${MIN_KEDA_VERSION}"
+    return 0
+  fi
+
+  if ! command_exists kubectl; then
+    log_error "kubectl is required to verify KEDA"
+    return 1
+  fi
+
+  # Check if KEDA namespace exists
+  if ! kubectl get namespace "$KEDA_NAMESPACE" &>/dev/null; then
+    log_error "KEDA namespace '${KEDA_NAMESPACE}' not found"
+    return 1
+  fi
+
+  local installed_ver
+  installed_ver=$(get_tool_version keda)
+  
+  if [[ "$installed_ver" == "0.0.0" ]]; then
+    log_error "KEDA version could not be determined"
+    return 1
+  fi
+
+  # Check version
+  if ! version_gte "$installed_ver" "$MIN_KEDA_VERSION"; then
+    log_warn "KEDA version ${installed_ver} is below minimum ${MIN_KEDA_VERSION}"
+    return 1
+  fi
+
+  # Check if KEDA operator is running
+  local operator_status
+  operator_status=$(kubectl get deployment keda-operator -n "$KEDA_NAMESPACE" -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null || echo "False")
+  
+  if [[ "$operator_status" != "True" ]]; then
+    log_error "KEDA operator is not available"
+    kubectl get pods -n "$KEDA_NAMESPACE"
+    return 1
+  fi
+
+  log_success "KEDA is available: v${installed_ver} (>= v${MIN_KEDA_VERSION} ✓)"
+  return 0
 }
 
 #######################################
@@ -681,18 +838,21 @@ Options:
   --retries <n>               Number of retry attempts (default: 3)
   --retry-delay <s>           Delay between retries in seconds (default: 3)
   --kubectl-version <version> Specific kubectl version (default: ${KUBECTL_VERSION})
-  --helm-version <version>    Specific helm version — NOTE: only v${HELM_REQUIRED_VERSION} is supported.
+  --helm-version <version>    Specific helm version — NOTE: only v3.18.x and v3.19.x are supported.
                               Auto-install is disabled; script will verify only.
 
 Minimum Required Versions:
   kubectl:    >= v${MIN_KUBECTL_VERSION}
-  helm:       == v${HELM_REQUIRED_VERSION}  (exact match required — no auto-install)
+  helm:       >= v${MIN_HELM_VERSION} (and <= v${MAX_HELM_VERSION})
+              Acceptable: v3.18.x or v3.19.x (no auto-install)
+  keda:       >= v${MIN_KEDA_VERSION} (installed to cluster)
   aws-cli:    >= ${MIN_AWS_CLI_VERSION} (AWS only)
   azure-cli:  >= ${MIN_AZURE_CLI_VERSION} (Azure only)
 
 Pinned Installation Versions:
   kubectl:    ${KUBECTL_VERSION}
-  helm:       ${HELM_REQUIRED_VERSION}  (verify only — install manually if mismatched)
+  helm:       v${MIN_HELM_VERSION} - v${MAX_HELM_VERSION} (verify only — install manually if outside range)
+    keda:       ${KEDA_VERSION} (Helm chart installed to ${KEDA_NAMESPACE} namespace)
   aws-cli:    ${AWS_CLI_VERSION}
   azure-cli:  ${AZURE_CLI_VERSION}
 
@@ -721,8 +881,8 @@ Examples:
   # Quiet mode for CI/CD pipelines
   $(basename "$0") --cloud azure --quiet
 
-  # Install specific versions
-  $(basename "$0") --cloud aws --kubectl-version v1.32.0 --helm-version v3.17.0
+  # Install specific kubectl version (helm will be verified only)
+  $(basename "$0") --cloud aws --kubectl-version v1.32.0
 
 Supported Cloud Environments:
   - AWS CloudShell (Amazon Linux / yum)
@@ -818,15 +978,22 @@ parse_args() {
         ;;
       --helm-version)
         if [[ -z "${2:-}" ]]; then
-          echo "[ERROR] --helm-version requires a version argument (e.g., v3.18.1)"
+          echo "[ERROR] --helm-version requires a version argument (e.g., v3.18.1 or v3.19.0)"
           exit 2
         fi
-        # Helm version cannot be changed — only HELM_REQUIRED_VERSION is supported
-        if [[ "${2#v}" != "$HELM_REQUIRED_VERSION" ]]; then
-          echo "[ERROR] helm auto-install is disabled. Only v${HELM_REQUIRED_VERSION} is supported."
-          echo "        Please install helm v${HELM_REQUIRED_VERSION} manually before running this script."
+        # Remove 'v' prefix for comparison
+        local requested_helm="${2#v}"
+        local requested_major_minor="${requested_helm%.*}"
+        
+        # Only accept 3.18.x or 3.19.x
+        if [[ "$requested_major_minor" != "3.18" ]] && [[ "$requested_major_minor" != "3.19" ]]; then
+          echo "[ERROR] helm auto-install is disabled. Only v3.18.x and v3.19.x are supported."
+          echo "        Please install helm v3.18.x or v3.19.x manually before running this script."
           exit 2
         fi
+        
+        # Update HELM_REQUIRED_VERSION for display purposes only
+        HELM_REQUIRED_VERSION="$requested_helm"
         shift 2
         ;;
       -*)
@@ -879,6 +1046,7 @@ should_install() {
   case "$tool" in
     aws-cli) cmd="aws" ;;
     azure-cli) cmd="az" ;;
+    keda) cmd="kubectl" ;;  # KEDA requires kubectl to check
   esac
   
   # If specific tools requested, check if this one is in the list
@@ -893,7 +1061,38 @@ should_install() {
     return 0
   fi
   
-  # Check if not installed
+  # Special handling for KEDA (cluster-based tool)
+  if [[ "$tool" == "keda" ]]; then
+    # Check if kubectl is available
+    if ! command_exists kubectl; then
+      log_warn "kubectl is required to check KEDA status"
+      return 0  # Should install (kubectl will be installed first)
+    fi
+    
+    # Check if KEDA namespace exists
+    if ! kubectl get namespace "$KEDA_NAMESPACE" &>/dev/null; then
+      return 0  # KEDA not installed, should install
+    fi
+    
+    # Check KEDA version
+    local keda_ver
+    keda_ver=$(get_tool_version keda)
+    
+    if [[ "$keda_ver" == "0.0.0" ]]; then
+      return 0  # Version couldn't be determined, should (re)install
+    fi
+    
+    # Check if version meets minimum
+    if [[ -n "$min_version" ]] && ! version_gte "$keda_ver" "$min_version"; then
+      log_warn "KEDA version ${keda_ver} is below minimum ${min_version}"
+      return 0  # Should upgrade
+    fi
+    
+    # KEDA is installed and meets minimum version
+    return 1  # Should NOT install
+  fi
+  
+  # Check if not installed (for binary tools)
   if ! command_exists "$cmd"; then
     return 0
   fi
@@ -917,6 +1116,7 @@ capture_pre_install_versions() {
   PRE_INSTALL_VERSIONS[helm]=$(get_tool_version helm)
   PRE_INSTALL_VERSIONS[aws-cli]=$(get_tool_version aws)
   PRE_INSTALL_VERSIONS[azure-cli]=$(get_tool_version az)
+  PRE_INSTALL_VERSIONS[keda]=$(get_tool_version keda)
 }
 
 #######################################
@@ -1173,7 +1373,8 @@ print_summary() {
     echo "│ Minimum Required Versions                                   │"
     echo "├─────────────────────────────────────────────────────────────┤"
     printf "│  %-12s >= v%-41s │\n" "kubectl:" "${MIN_KUBECTL_VERSION}"
-    printf "│  %-12s = v%-41s │\n" "helm:" "${MIN_HELM_VERSION}"
+    printf "│  %-12s v%-5s - v%-32s │\n" "helm:" "${MIN_HELM_VERSION}" "${MAX_HELM_VERSION}"
+    printf "│  %-12s >= v%-41s │\n" "keda:" "${MIN_KEDA_VERSION}"
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
       printf "│  %-12s >= %-42s │\n" "aws-cli:" "${MIN_AWS_CLI_VERSION}"
     elif [[ "$CLOUD_PROVIDER" == "azure" ]]; then
@@ -1216,7 +1417,8 @@ print_summary() {
       for tool in "${!SKIPPED_THIS_RUN[@]}"; do
         cur_ver=$(get_tool_version "$tool")
         reason="${SKIPPED_THIS_RUN[$tool]}"
-        printf "│   ○ %-10s %-10s (%s)                       │\n" "$tool:" "$cur_ver" "$reason"
+        # Fix formatting - align columns properly
+        printf "│   ○ %-10s %-10s %-32s │\n" "$tool:" "$cur_ver" "($reason)"
       done
     fi
     
@@ -1272,17 +1474,35 @@ print_summary() {
     }
     
     print_tool_status "kubectl" "$MIN_KUBECTL_VERSION"
+    
+    # Helm status with range check
     local helm_ver
     helm_ver=$(get_tool_version helm)
     local helm_major_minor="${helm_ver%.*}"
-    local required_major_minor="${MIN_HELM_VERSION%.*}"  # Changed from HELM_REQUIRED_VERSION
     
-    if command_exists helm && ([[ "$helm_ver" == "$MIN_HELM_VERSION" ]] || [[ "$helm_major_minor" == "$required_major_minor" ]]); then
-      printf "│  ✓ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(OK)"
-    elif command_exists helm; then
-      printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(REQUIRED: v${MIN_HELM_VERSION})"
+    if command_exists helm; then
+      # Check if in acceptable range (3.18.x or 3.19.x)
+      if ([[ "$helm_major_minor" == "3.18" ]] && version_gte "$helm_ver" "$MIN_HELM_VERSION") || [[ "$helm_major_minor" == "3.19" ]]; then
+        printf "│  ✓ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(OK)"
+      else
+        printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "$helm_ver" "(REQUIRED: v${MIN_HELM_VERSION}-v${MAX_HELM_VERSION})"
+      fi
     else
       printf "│  ✗ %-11s %-12s %-28s │\n" "helm:" "---" "(NOT INSTALLED)"
+    fi
+
+    # KEDA status - cluster-based check
+    local keda_ver
+    keda_ver=$(get_tool_version keda)
+    
+    if [[ "$keda_ver" != "0.0.0" ]]; then
+      if version_gte "$keda_ver" "$MIN_KEDA_VERSION"; then
+        printf "│  ✓ %-11s %-12s %-28s │\n" "keda:" "$keda_ver" "(OK)"
+      else
+        printf "│  ⚠ %-11s %-12s %-28s │\n" "keda:" "$keda_ver" "(UPGRADE NEEDED)"
+      fi
+    else
+      printf "│  ✗ %-11s %-12s %-28s │\n" "keda:" "---" "(NOT INSTALLED)"
     fi
 
     if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
@@ -1298,6 +1518,7 @@ print_summary() {
     # Check if all tools are compatible
     
     local all_compatible=true
+    local tools_to_check=("kubectl" "helm" "keda")
     local tools_to_check=("kubectl" "helm")
     local min_versions=("$MIN_KUBECTL_VERSION" "$MIN_HELM_VERSION")
     local i
@@ -1320,13 +1541,21 @@ print_summary() {
           local helm_ver
           helm_ver=$(get_tool_version helm)
           local helm_major_minor="${helm_ver%.*}"
-          local required_major_minor="${HELM_REQUIRED_VERSION%.*}"
           
-          if [[ "$helm_ver" != "$HELM_REQUIRED_VERSION" ]] && [[ "$helm_major_minor" != "$required_major_minor" ]]; then
+          # Accept 3.18.x (>= 3.18.0) or 3.19.x
+          if ([[ "$helm_major_minor" == "3.18" ]] && version_gte "$helm_ver" "$MIN_HELM_VERSION") || [[ "$helm_major_minor" == "3.19" ]]; then
+            # Version is acceptable
+            :
+          else
             all_compatible=false
             break
           fi
         else
+          all_compatible=false
+          break
+        fi
+      elif [[ "$tool" == "keda" ]]; then
+        if ! verify_keda &>/dev/null; then
           all_compatible=false
           break
         fi
@@ -1379,7 +1608,7 @@ main() {
     
     log_info "Cloud provider: $CLOUD_PROVIDER"
     log_info "Detected package manager: $PKG_MANAGER"
-    log_info "Pinned versions: kubectl=${KUBECTL_VERSION}, helm=${HELM_REQUIRED_VERSION} (verify only)"
+    log_info "Pinned versions: kubectl=${KUBECTL_VERSION}, helm=v${MIN_HELM_VERSION}-v${MAX_HELM_VERSION} (verify only)"
     echo ""
   fi
   
@@ -1409,13 +1638,26 @@ main() {
   verify_tool kubectl "$MIN_KUBECTL_VERSION" || true
 
   # Helm — verify only, do NOT install
-  log_info "Verifying helm version (required: v${HELM_REQUIRED_VERSION}, no auto-install)..."
+    log_info "Verifying helm version (required: v${MIN_HELM_VERSION} - v${MAX_HELM_VERSION}, no auto-install)..."
   if verify_helm_version; then
     track_install "helm" "skipped" "verified"
   else
     track_install "helm" "failed" "version mismatch or not installed"
   fi
   
+  # KEDA — install if not present or version too old
+  if should_install keda "$MIN_KEDA_VERSION"; then
+    if install_keda; then
+      track_install "keda" "installed" "new/upgraded"
+    else
+      track_install "keda" "failed" "installation error"
+    fi
+  else
+    track_install "keda" "skipped" "meets minimum"
+    log_info "KEDA already meets minimum version (use --force to reinstall)"
+  fi
+  verify_keda || true
+
   # Install cloud-specific CLI
   case "$CLOUD_PROVIDER" in
     aws)
