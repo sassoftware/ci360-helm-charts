@@ -27,13 +27,14 @@ Review the information in the following sections to set up your Amazon Web Servi
 2. Configure storage volumes that contain your data.
    Use Azure Blob Storage to create a container to store the data
    (for example, `marketinganalytic`).
-3. Create two node pools: **App Pool** and **System Pool**.
+3. Create two node pools: **User Node Pool** and **System Node Pool**.
 
    Use this information to configure the node pools:
 
    | Setting | Value |
    |---------|-------|
-   | Minimum node count (App Pool) | 8 |
+   | Minimum node count (User Node Pool) | 8 |
+   | Minimum node count (System Node Pool) | 1 |
    | VM size (recommended) | `Standard_D4s_v5` |
    | Taints | None (default) |
    | Labels | Optional (for scheduling) |
