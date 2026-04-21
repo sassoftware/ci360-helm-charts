@@ -13,7 +13,7 @@ Review the information in the following sections to set up your Amazon Web Servi
 |------|------------------------------|
 | Kubernetes Version | >= 1.30 recommended |
 | Cloud Provider | Microsoft Azure (AKS) |
-| Cluster Auto Scaling | Do **not** use the Azure Auto Scaling option |
+| Cluster Auto Scaling | Do **not** use the Automatic Kubernetes Cluster option while creating the cluster |
 | Authentication Mode | Microsoft Entra ID authentication with Kubernetes RBAC |
 | OIDC | Enabled (required for Workload Identity) |
 | Workload Identity | Enabled (IRSA equivalent) |
