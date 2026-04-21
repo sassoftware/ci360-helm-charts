@@ -91,6 +91,26 @@ A public IP address and NAT enables communication between data sources that migh
 ### KEDA
 
 Add KEDA to the cluster for event-driven or auto-scaled workloads (for example, Airflow workers).
+1. Add KEDA Helm Repository
+```sh
+helm repo add kedacore https://kedacore.github.io/charts
+```
+2. helm repo update
+```sh
+helm repo update
+```
+4. Install KEDA using Helm
+Note: Install the KEDA operator in a dedicated namespace (keda is recommended).
+```sh
+helm install keda kedacore/keda \
+  --namespace keda \
+  --create-namespace
+```
+5. Verify Installation
+Check that the KEDA operator and metrics server pods are running.
+```sh
+kubectl get pods -n keda
+```
 
 ### Service Monitoring CRD
 
