@@ -149,15 +149,7 @@ information is used to set configuration values later in the deployment process.
            password: &lt;storage account key&gt;
          </td>
          <td>Used to create the Airflow default connection for Azure.</td>
-       </tr>
-       <tr>
-         <td>fleets.existingSecret</td>
-         <td>fleet-credentials</td>
-         <td>fleet-credentials</td>
-         <td>
-           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match the namespace and secret that you created there.
-         </td>
-       </tr>
+       </tr> 
        <tr>
          <td>global.fleets.hostName</td>
          <td>Required</td>
