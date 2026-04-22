@@ -111,17 +111,3 @@ Check that the KEDA operator and metrics server pods are running.
 ```sh
 kubectl get pods -n keda
 ```
-
-### Service Monitoring CRD
-
-1. Verify that the ServiceMonitor CRD exists:
-
-   ```sh
-   kubectl get crd servicemonitors.monitoring.coreos.com
-   ```
-
-2. If it does not exist, deploy it:
-
-   ```sh
-   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-   ```
