@@ -407,7 +407,7 @@ Use one of the following options, depending on the deployment target:
    * **Azure:** `values-azure.yaml`
 
  3. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
-   in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/edit/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
+   in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
 
  4. Upload the modified file through the cloud console.
   
