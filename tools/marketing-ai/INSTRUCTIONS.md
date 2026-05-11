@@ -1,59 +1,53 @@
-# Using the SAS Open Source Project Starter Kit
+This section provides instructions to list all available Helm charts, select a desired chart, and install it.
 
-Use the SAS Open Source Project Starter Kit to seed a GitHub repository for a new open source project that follows the [SAS Open Source Contributions](https://inside.sas.com/policies/open-source-contributions/) policy.
+### 1. Add the Helm repository:
+   ```
+   helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
+   helm repo update
+   ```
 
-See [First-Party Open Source Contributions](https://rndconfluence.sas.com/x/8TvSFg) for a complete guide to using this kit.
+### 2. List the charts and versions:
+   ```
+  helm search repo ci360-helm-charts --versions
+   ```
 
-## How to Use This Kit
 
-1. Navigate to `https://github.com/organizations/sas-institute-rnd-internal/repositories/new`.
-1. Click the __Repository template__ drop-down menu.
-1. Select `sas-institute-rnd-internal/workflows-sas-open-source-project-starter-kit` as your new project's template.
-1. Enter a project name that begins with `tmp-`.
-1. Enter a description for the project.
-1. Select a visibility level for the project.
-1. Click __Create repository__.
+### 3. See package contents for a version:
 
-> [!NOTE]
-> If you do not select the `Internal` visibility setting, you must specifically provide reviewers access to your repository at a later date.
+   ```
+  helm show readme ci360-helm-charts/marketing-ai --version 0.0.44
+  helm show values ci360-helm-charts/marketing-ai --version 0.0.44
+  helm show chart ci360-helm-charts/marketing-ai --version 0.0.44
+   ```
 
-GitHub uses the SAS Open Source Project Starter Kit to create a new repository for your work, pre-populating that repository with all of the kit's materials.
+### 4. Overriding parameters
 
-## Preparing Your Project for Review
+#### a. Using `--set` parameter:
+```sh
+helm upgrade --install <release-name> <chart-name> --set global.storageBucket="your-new-bucket-name"
+```
 
-Members of the Open Source Program Office and additional subject matter experts will review your project prior to release.
-Files in the starter kit are annotated with comments to assist you in preparing and staging your project.
-Follow these instructions to ensure efficient and timely review.
+#### b. Using values.yaml:
+```sh
+helm show values marketing-ai/marketing-ai-0.0.43.tgz > custom-values.yaml
+helm upgrade --install <release-name> <chart-name> --values custom-values.yaml
+```
 
-For complete instructions, see the Open Source Program Office's guide to creating [First-Party Open Source Contributions](https://rndconfluence.sas.com/x/8TvSFg).
+#### c. Sample cloud-specific values.yaml:
 
-> [!TIP]
-> Delete the INSTRUCTIONS.md file from your project before submitting your project for review.
+See [values-aws.yaml](./values-aws.yaml) and [values-azure.yaml](./values-azure.yaml) for reference.
 
-To submit your open source project for review, follow the [Open Source Contributions Quick Start Guide](https://rndconfluence.sas.com/x/sKjrFg).
-You provide links to your project and its materials as part of this review.
-
-## Creating Project Documentation
-
-The SAS Open Source Project Starter Kit contains resources for building project documentation that complies with SAS brand standards. This documentation is built and served with the [Docusaurus](https://docusaurus.io/) website generator.
-
-**If you want to use these documentation materials,** edit the `website/docusaurus.config.ts` file in order to:
-
-- replace `<projectName>` with your project name
-- replace `<your logo>` with the file name of your project logo
-
-> [!NOTE]
-> The `docusaurus.config.ts` file contains multiple instances of these variables; be sure to locate and change them all.
-
-Add Markdown files to `website/docs` to begin creating project documentation.
-The website is automatically rebuilt when changes to these files are merged to the `main` branch.
-See its [README](./website/README.md) for details.
-
-See project documentation for the [SAS extension for Visual Studio Code](https://github.com/sassoftware/vscode-sas-extension/tree/main/website) for an example.
-
-**If you do not wish to use these documentation materials,** remove the following components from the repository:
-
-- the `website` directory and all files that it contains
-- the `Update Documentation` section in the `CONTRIBUTING.md` file
-- `.github/dependabot.yml`
-- `.github/workflows/deploy-doc.yml`
+#### d. Grab the cloud-specific values.yaml:
+   - Download the desired chart archive (e.g., `marketing-ai-0.0.43.tgz`).
+   - Unpack the archive:
+```sh
+tar -xzf marketing-ai-0.0.43.tgz
+```
+   - Locate the cloud-specific values file:
+     - For GCP: `marketing-ai/values-gcp.yaml`
+     - For AWS: `marketing-ai/values-aws.yaml`
+     - For Azure: `marketing-ai/values-azure.yaml`
+   - Use the appropriate file to override default values during installation:
+```sh
+helm install <release-name> <chart-path> --values marketing-ai/values-gcp.yaml
+```
