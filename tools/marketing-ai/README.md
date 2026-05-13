@@ -565,14 +565,13 @@ By default, the Airflow database does not any delete historical data. To improve
 and to prevent excess data from being stored locally, this maintenance job removes data that is
 older than 180 days.
 
-The cron job performs the `airflow db clean` command from within the Kubernetes cluster through
-the Airflow CLI.
+The cron job uses the Airflow CLI, and runs the `airflow db clean` command from within the Kubernetes cluster.
 
 These are the recurrence settings for this cron job:
 
 * **Frequency:** Monthly
 * **Day:** First Sunday of every month
-* **Timing:** 02AM (During low-usage hours)
+* **Timing:** 02:00 AM
 
 ## Contributing
 
