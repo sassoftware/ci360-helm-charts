@@ -558,10 +558,10 @@ Organize troubleshooting information using subtopics, as appropriate.
 
 ## Database Maintenance for the Local Agent
 
-When the local agent is deployed, the configuration steps also set up a cron job to perform
+When the local agent is deployed, the deployment also automatically configures a cron job to perform
 maintenance on the Airflow database.
 
-By default, the Airflow database does not any delete historical data. To improve database performance,
+By default, the Airflow database does not delete any historical data. To improve database performance,
 and to prevent excess data from being stored locally, this maintenance job removes data that is
 older than 180 days.
 
