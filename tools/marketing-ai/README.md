@@ -5,6 +5,7 @@ On this page:
 * [Overview](#overview)
 * [Prerequisites](#prerequisites)
 * [Deploy the Local Agent](#deploy-the-local-agent)
+* [Database Maintenance for the Local Agent](#database-maintenance-for-the-local-agent)
 * [Contributing](#contributing)
 * [License](#license)
 * [Additional Resources](#additional-resources)
@@ -554,6 +555,23 @@ Make learning and using your project as easy as possible!
 Provide workarounds and solutions to known problems.
 Organize troubleshooting information using subtopics, as appropriate.
 -->
+
+## Database Maintenance for the Local Agent
+
+When the local agent is deployed, the deployment also automatically configures a cron job to perform
+maintenance on the Airflow database.
+
+By default, the Airflow database does not delete any historical data. To improve database performance,
+and to prevent excess data from being stored locally, this maintenance job removes data that is
+older than 180 days.
+
+The cron job uses the Airflow CLI, and runs the `airflow db clean` command from within the Kubernetes cluster.
+
+These are the recurrence settings for this cron job:
+
+* **Frequency:** Monthly
+* **Day:** First Sunday of every month
+* **Timing:** 02:00 AM
 
 ## Contributing
 
