@@ -58,6 +58,13 @@ airflow:
       value: "wasb_default"
     - name: AIRFLOW_CONN_WASB_DEFAULT
       value: '{"conn_type": "wasb", "host": "{{ .Values.global.storageAccountName }}.blob.core.windows.net"}'
+    # Suppress verbose HTTP request/response logging from Azure SDK and HTTP libraries.
+    - name: AZURE_LOG_LEVEL
+      value: "WARNING"
+    # Suppress urllib3 connection pool and retry logs (used internally by the requests library
+    # and Azure SDK transport, emitting endpoint URLs and connection details at DEBUG level).
+    - name: PYTHONWARNINGS
+      value: "ignore"
 
   config:
     logging:
