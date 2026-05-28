@@ -126,6 +126,13 @@ ci360-satellite:
   maiproxy:
     nodeSelector:
       agentpool: *agentpool
+    # Enable workload identity and Prometheus scraping on the maiproxy pods
+    podAnnotations:
+      azure.workload.identity/use: "true"
+      # AMA Prometheus scrape annotations
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+      prometheus.io/path: "/maiproxy/metrics"
     environment:
       MAI_INTERNAL_STORAGE_PREFIX: azure
       MAI_INTERNAL_STORAGE_BUCKET: mai  # use from global values, or use anchors.
@@ -167,3 +174,7 @@ fleets:
   username: ""
   password: ""
   key: ""  # deprecated: use 'password' instead
+
+amaPrometheus:
+  enabled: false # Set to true to enable the AMA-managed Prometheus scrape configuration
+  scrapeInterval: "30s"
