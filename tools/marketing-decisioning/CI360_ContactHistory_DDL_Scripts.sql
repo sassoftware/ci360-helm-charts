@@ -13,12 +13,10 @@ CREATE INDEX IF NOT EXISTS cha_decision_contact_history_sk
     ON contactresponse.contact_history_attributes USING btree
     (decision_contact_history_sk COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
-	
+
 CREATE TABLE IF NOT EXISTS contactresponse.decision_contact_history
 (
     decision_contact_history_sk character varying(36) COLLATE pg_catalog."default" NOT NULL,
-    identity_value character varying(500) COLLATE pg_catalog."default" NOT NULL,
-    identity_type character varying(36) COLLATE pg_catalog."default" DEFAULT 'customer_id',
     subject_level character varying(100) COLLATE pg_catalog."default",
     creation_dttm timestamp without time zone,
     modified_dttm timestamp without time zone,
@@ -28,23 +26,50 @@ CREATE TABLE IF NOT EXISTS contactresponse.decision_contact_history
     action_id character varying(36) COLLATE pg_catalog."default",
     action_group_id character varying(36) COLLATE pg_catalog."default",
     action_code character varying(250) COLLATE pg_catalog."default",
-    action_category character varying(1024) COLLATE pg_catalog."default",
-	action_type character varying(1024) COLLATE pg_catalog."default",
+    action_category text COLLATE pg_catalog."default",
     action_version_no character varying(36) COLLATE pg_catalog."default",
     decision_version_no character varying(36) COLLATE pg_catalog."default",
+    action_type character varying(1024) COLLATE pg_catalog."default",
+    identity_value character varying(500) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
+    identity_type character varying(36) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
     CONSTRAINT decision_contact_history_pkey PRIMARY KEY (decision_contact_history_sk)
 )
+
+CREATE INDEX IF NOT EXISTS dch_action_code
+    ON contactresponse.decision_contact_history USING btree
+    (action_code COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS dch_action_type
+    ON contactresponse.decision_contact_history USING btree
+    (action_type COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS dch_channel_nm
+    ON contactresponse.decision_contact_history USING btree
+    (channel_nm COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS dch_decision_id
+    ON contactresponse.decision_contact_history USING btree
+    (decision_id COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS dch_identity_value
+    ON contactresponse.decision_contact_history USING btree
+    (identity_value COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
 
 CREATE INDEX IF NOT EXISTS dch_response_tracking_cd
     ON contactresponse.decision_contact_history USING btree
     (response_tracking_cd COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
-	
+
 CREATE TABLE IF NOT EXISTS contactresponse.presented_contact_history
 (
     presented_contact_history_sk character varying(36) COLLATE pg_catalog."default" NOT NULL,
     decision_contact_history_sk character varying(36) COLLATE pg_catalog."default",
-    presented_txt character varying(1024) COLLATE pg_catalog."default",
+    presented_txt character varying(1332) COLLATE pg_catalog."default",
     presentation_dttm timestamp without time zone,
     creation_dttm timestamp without time zone,
     modified_dttm timestamp without time zone,
@@ -54,29 +79,43 @@ CREATE TABLE IF NOT EXISTS contactresponse.presented_contact_history
 CREATE INDEX IF NOT EXISTS pch_decision_contact_history_sk
     ON contactresponse.presented_contact_history USING btree
     (decision_contact_history_sk COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;	
+    TABLESPACE pg_default;
 	
 CREATE TABLE IF NOT EXISTS contactresponse.response_history
 (
     response_history_sk character varying(36) COLLATE pg_catalog."default" NOT NULL,
     response_dttm timestamp without time zone,
     response_txt character varying(1024) COLLATE pg_catalog."default",
+    response_type_code character varying(250) COLLATE pg_catalog."default",
     response_type_txt character varying(250) COLLATE pg_catalog."default",
-    response_channel character varying(250) COLLATE pg_catalog."default",    
+    response_channel character varying(250) COLLATE pg_catalog."default",
     response_tracking_cd character varying(36) COLLATE pg_catalog."default" NOT NULL,
-	response_type_code character varying(250) COLLATE pg_catalog."default" NOT NULL,
-	creation_dttm timestamp without time zone,
+    creation_dttm timestamp without time zone,
+    identity_value character varying(500) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
+    identity_type character varying(36) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
+    subject_level character varying(100) COLLATE pg_catalog."default",
+    action_code character varying(250) COLLATE pg_catalog."default",
+    action_category text COLLATE pg_catalog."default",
+    action_type character varying(1024) COLLATE pg_catalog."default",
     CONSTRAINT response_history_pkey PRIMARY KEY (response_history_sk)
 )
 
+CREATE INDEX IF NOT EXISTS rh_response_channel
+    ON contactresponse.response_history USING btree
+    (response_channel COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
 CREATE INDEX IF NOT EXISTS rh_response_tracking_cd
     ON contactresponse.response_history USING btree
-    (response_tracking_cd COLLATE pg_catalog."default" ASC NULLS LAST, decision_contact_history_sk COLLATE pg_catalog."default" ASC NULLS LAST)
+    (response_tracking_cd COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS rh_response_type_code
+    ON contactresponse.response_history USING btree
+    (response_type_code COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS rh_response_type_txt
+    ON contactresponse.response_history USING btree
+    (response_type_txt COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;	
-
-
-CREATE INDEX IF NOT EXISTS idx_contact_history_action_code
-    ON contactresponse.decision_contact_history USING btree
-    (action_code COLLATE pg_catalog."default" ASC NULLS LAST)
-	TABLESPACE pg_default;
-	
