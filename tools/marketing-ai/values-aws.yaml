@@ -94,6 +94,12 @@ ci360-satellite:
   maiproxy:
     nodeSelector:
       karpenter.sh/capacity-type: on-demand
+    # Enable Prometheus scraping on the maiproxy pods
+    podAnnotations:
+      # Prometheus scrape annotations
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+      prometheus.io/path: "/maiproxy/metrics"
   maiorchestra:
     nodeSelector:
       karpenter.sh/capacity-type: on-demand
@@ -119,3 +125,7 @@ fleets:
   username: ""
   key: ""
   keepHook: true
+
+amaPrometheus:
+  enabled: false  # Set to true to enable the AMA-managed Prometheus scrape configuration
+  scrapeInterval: "30s"
