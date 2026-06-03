@@ -113,4 +113,7 @@ kubectl get pods -n keda
 ```
 
 ## 5. Monitoring Agent 
-The cluster must have a monitoring and observability solution enabled. Existing platforms such as Datadog, Dynatrace, New Relic, or an equivalent enterprise monitoring solution are acceptable. If no monitoring solution is currently deployed, Azure-native monitoring must be enabled using the Azure-managed Azure Monitor Agent to provide the required observability, metrics, and logging capabilities before implementation.
+The cluster must have a monitoring and observability solution enabled. Existing platforms such as Datadog, Dynatrace, New Relic, or an equivalent enterprise monitoring solution are acceptable. If no monitoring solution is currently deployed, Azure-native monitoring must be enabled using the Azure-managed Azure Monitor Agent and Managed Prometheus to provide the required observability, metrics, and logging capabilities before implementation.
+
+
+
