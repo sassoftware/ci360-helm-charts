@@ -187,7 +187,7 @@ Use one of the following options, depending on the deployment target:
      ```
      **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
 
-     If the version is not v3.18.1 (or Helm is not installed), use the following commands to install the correct version:
+     If Helm is not installed, use the following commands to install the correct version:
   
      ```sh
      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
@@ -199,6 +199,28 @@ Use one of the following options, depending on the deployment target:
    
      ```sh
      DESIRED_VERSION=v3.18.1 ./get_helm.sh
+     ```
+
+     If Helm is installed and the version is *not* 3.18/3.19, use the following command to install and update the correct version:
+
+      ```sh
+     mkdir -p $HOME/.local/bin && \
+     export PATH="$HOME/.local/bin:$PATH" && \
+     echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
+     wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
+     tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
+     mv linux-amd64/helm $HOME/.local/bin/helm && \
+     rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
+     ```
+
+     ```sh
+     #Clear terminal cache
+     hash -r
+     ```
+
+     ```sh
+     #Check helm version
+     helm version
      ```
 
 * Local deployment or virtual machine:
