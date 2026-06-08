@@ -112,7 +112,7 @@ information is used to set configuration values later in the deployment process.
        </tr>
        <tr>
          <td>_remoteBaseLogFolder</td>
-         <td>s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent</td>
+         <td> s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent</td>
          <td>wasb://airflow-logs@&lt;blob bucket name&gt;.blob.core.windows.net/logs</td>
          <td>Used to push logs to the log folder.</td>
        </tr>
@@ -155,7 +155,16 @@ information is used to set configuration values later in the deployment process.
          <td>global.fleets.hostName</td>
          <td>Required</td>
          <td>Required</td>
-         <td>External API gateway value for Fleets. This value is provided by SAS in the welcome email.</td>
+         <td>The following regional fleet API gateway endpoints are available for deployment, choose as per your production region:
+           <ul>
+             <li>fleetsapigw-prod-apn.ci360.sas.com (Asia Pacific North)</li>
+             <li>fleetsapigw-prod-euw.ci360.sas.com (Europe West)</li>
+             <li>fleetsapigw-prod-mum.ci360.sas.com (Mumbai)</li>
+             <li>fleetsapigw-prod-syd.ci360.sas.com (Sydney)</li>
+             <li>fleetsapigw-prod-use.ci360.sas.com (US East)</li>
+             <li>fleetsapigw-training.ci360.sas.com (Training Environment)</li>
+           </ul>
+         </td>
        </tr>
        <tr>
          <td>global.fleets.tenant</td>
