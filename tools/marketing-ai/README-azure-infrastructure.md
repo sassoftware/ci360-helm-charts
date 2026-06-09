@@ -1,6 +1,6 @@
 # Azure Infrastructure Requirements for Local Agent
 
-Review the information in the following sections to set up your Amazon Web Services (AWS) environment for the local agent.
+Review the information in the following sections to set up your Azure Kubernetes Service (AKS) environment for the local agent.
 
 1. [AKS Cluster Requirements](#1-aks-cluster-requirements)
 2. [Configure Container Storage](#2-configure-container-storage)
