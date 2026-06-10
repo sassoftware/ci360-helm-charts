@@ -22,7 +22,7 @@ your data to the cloud. The local agent creates a secure socket connection betwe
 Customer Intelligence 360. The actions that you take in the user interface for SAS Customer Intelligence 360
 are then communicated to your environment, where the actual modeling and analytics are run.
 
-After analysis is complete, only the results are sent back to SAS Customer Intelligence 360. This keeps your
+After the analysis is complete, only the results are sent back to SAS Customer Intelligence 360. This keeps your
 data in your chosen environments while allowing you to take full advantage of the features of SAS Customer
 Intelligence 360.
 
@@ -48,7 +48,7 @@ Set up an account with a cloud-service provider, such as Amazon Web Services (AW
 
 ### Deploy a Kubernetes Cluster
 
-Deploy and configure a Kubernetes cluster. This cluster will be configured to connect to your
+Deploy and configure a Kubernetes cluster. The cluster must be configured to connect to your
 cloud-service provider. For more information, see
 [https://kubernetes.io/docs/setup/](https://kubernetes.io/docs/setup/).
 
@@ -58,8 +58,8 @@ prerequisites specific to your cloud provider, see:
 - [AWS Infrastructure Requirements](./README-aws-infrastructure.md)
 - [Azure Infrastructure Requirements](./README-azure-infrastructure.md)
 
-### Collect The Required Deployment Information
-Based on the cloud provider that you will deploy the local agent, find the corresponding values in the table below. This
+### Collect the Required Deployment Information
+Based on the cloud provider where you will deploy the local agent, find the corresponding values in the table below. This
 information is used to set configuration values later in the deployment process.
 
 <table role="table" style="width: 100%;">
@@ -92,7 +92,7 @@ information is used to set configuration values later in the deployment process.
        </tr>
        <tr>
          <td>_dagsStorageClassName</td>
-         <td>efc-sc</td>
+         <td>efs-sc</td>
          <td>azurefile-csi</td>
          <td>Used for sharing DAGs across different pods.</td>
        </tr>
@@ -170,7 +170,7 @@ information is used to set configuration values later in the deployment process.
          <td>global.fleets.tenant</td>
          <td>Tenant moniker for the tenant</td>
          <td>Tenant moniker for the tenant</td>
-         <td>Used to authentication with the external API gateway. This value is created by SAS when the tenant is onboarded.<br><br>To find this value, in the user interface, click the user button and select <strong>About</strong>.</td>
+         <td>Used to authenticate with the external API gateway. This value is created by SAS when the tenant is onboarded.<br><br>To find this value, in the user interface, click the user button and select <strong>About</strong>.</td>
        </tr>
         <tr>
          <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT | login, password</td>
@@ -183,36 +183,33 @@ information is used to set configuration values later in the deployment process.
 
 ### Configure the Required Tools
 
-Use one of the following options, depending on the deployment target:
-
-* Cloud deployment:
-  1. Make sure that you are using Bash as the shell environment.
-        * AWS CloudShell uses Bash by default.
-        * In Azure Cloud Shell, select Bash as the default shell.
-  2. Check the installed Helm version:
+1. Make sure that you are using Bash as the shell environment.
+   * AWS CloudShell uses Bash by default.
+   * In Azure Cloud Shell, select Bash as the default shell.
+2. Check the installed Helm version:
 
      ```sh
      helm version --short
      ```
-     **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+**Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
 
-     If Helm is not installed, use the following commands to install the correct version:
-  
+3. If Helm is not installed, use the following commands to install the correct version
+
      ```sh
      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
      ```
-
+     
      ```sh
      chmod 700 get_helm.sh
      ```
-   
+     
      ```sh
      DESIRED_VERSION=v3.18.1 ./get_helm.sh
      ```
 
-     If Helm is installed and the version is *not* 3.18/3.19, use the following command to install and update the correct version:
+4. If Helm is installed and the version is *not* 3.18/3.19, use the following command to install and update the correct version:
 
-      ```sh
+     ```sh
      mkdir -p $HOME/.local/bin && \
      export PATH="$HOME/.local/bin:$PATH" && \
      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
@@ -221,25 +218,80 @@ Use one of the following options, depending on the deployment target:
      mv linux-amd64/helm $HOME/.local/bin/helm && \
      rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
      ```
-
+     
      ```sh
      #Clear terminal cache
      hash -r
      ```
-
+     
      ```sh
      #Check helm version
      helm version
      ```
 
-* Local deployment or virtual machine:
-   1. Verify that you have the following tools installed, with the minimum supported versions:
+5. Verify that you have the following tools installed, with the minimum supported versions:
       | Tool | Minimum Version |
       |------|-----------------|
       | Helm | = 3.18.XX or 3.19.XX |
       | kubectl | >= v1.27.0 |
       | AWS CLI | >= 2.18.1 |
       | Azure CLI | >= 2.83.0 |
+
+6. Connect to your Kubernetes cluster
+   
+   1. Sign in to your cloud account (AWS or the Azure CLI).
+      
+      (Azure only) Make sure that you have **contributor** access.
+
+   * **AWS:** Complete these steps:
+
+     ```sh
+     aws eks update-kubeconfig --name <cluster-name> --region <region>
+     ```
+
+     For example:
+
+     ```sh
+     aws eks update-kubeconfig --name aws-cluster-name --region us-east-1
+     ```
+
+   * **Azure:** Complete these steps:
+
+        1. Check if azure local accounts are enabled
+           ```sh
+            az aks show \
+            --resource-group <resource-group> \
+            --name <cluster-name> \
+            --query disableLocalAccounts \
+            -o tsv
+           ```
+ 
+           If the command returns false, local accounts are enabled.
+           
+        2. Enable local accounts on the AKS cluster:
+           >**Note**: If local account is disabled, ONLY then execute this step.
+
+           ```sh
+           az aks update -g <resource-group> -n <cluster-name> --enable-local-accounts
+           ```
+
+           For example:
+
+           ```sh
+           az aks update -g azure-resource-group-name -n azure-cluster-name --enable-local-accounts
+           ```
+
+        3. Get the cluster credentials:
+
+           ```sh
+           az aks get-credentials -g <resource-group> -n <cluster-name> --admin --overwrite-existing
+           ```
+
+           For example:
+
+           ```sh
+           az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
+           ```
 
    2. If any of the required tools are not installed or are below the minimum version, use the `setup-prerequisites-tools.sh` script to install them:
 
@@ -257,7 +309,7 @@ Use one of the following options, depending on the deployment target:
       4. Run the script for the appropriate cloud provider:
 
          ```sh
-         ./setup-prerequisites-tools.sh --cloud < aws | azure>
+         ./setup-prerequisites-tools.sh --cloud <aws | azure>
          ```
 
          To view the usage options, run this command:
@@ -270,49 +322,7 @@ Use one of the following options, depending on the deployment target:
 
 ### Configure the Kubernetes Environment
 
-1. Sign in to your cloud account (AWS or the Azure CLI).
-2. (Azure only) Make sure that you have **contributor** access.
-3. Connect to your Kubernetes cluster.
-
-   * **AWS:** Run the following command:
-
-     ```sh
-     aws eks update-kubeconfig --name <cluster-name> --region <region>
-     ```
-
-     For example:
-
-     ```sh
-     aws eks update-kubeconfig --name aws-cluster-name --region us-east-1
-     ```
-
-   * **Azure:** Complete these steps:
-
-        1. Enable local accounts on the AKS cluster:
-
-           ```sh
-           az aks update -g <resource-group> -n <cluster-name> --enable-local-accounts
-           ```
-
-           For example:
-
-           ```sh
-           az aks update -g azure-resource-group-name -n azure-cluster-name --enable-local-accounts
-           ```
-
-        2. Get the cluster credentials:
-
-           ```sh
-           az aks get-credentials -g <resource-group> -n <cluster-name> --admin --overwrite-existing
-           ```
-
-           For example:
-
-           ```sh
-           az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
-           ```
-
-4. Create a namespace:
+1. Create a namespace:
 
    ```sh
    kubectl create namespace <your-namespace>
@@ -324,13 +334,13 @@ Use one of the following options, depending on the deployment target:
    kubectl create namespace user-deployment-namespace
    ```
 
-5. Tag the namespace (as a best practice):
+2. Tag the namespace (as a best practice):
 
    ```sh
    kubectl label namespace <namespace> name=<namespace> --overwrite
    ```
 
-6. (Azure only) Add your namespace to the Managed Identity definition.
+3. (Azure only) Add your namespace to the Managed Identity definition.
 
      For Azure deployments that use Workload Identity, you must create federated credentials that bind the Kubernetes
      service accounts in your namespace to the Azure Managed Identity.
@@ -376,7 +386,7 @@ Use one of the following options, depending on the deployment target:
      ```
 
 
-8. Create Kubernetes secrets for these values:
+4. Create Kubernetes secrets for these values:
    * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
    * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
@@ -467,10 +477,16 @@ After the prerequisite steps are complete, run the validation tool to verify you
    ./validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace>
    ```
 
-   Here is an examples:
+   Here are the examples:
 
+   **AWS**
    ```sh
-   ./validate-configuration.sh --cloud aws --values ./values-< aws | azure >.yaml --namespace user-deployment-namespace
+   ./validate-configuration.sh --cloud aws --values ./values-aws.yaml --namespace user-deployment-namespace
+   ```
+
+   **Azure**
+   ```sh
+   ./validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace user-deployment-namespace
    ```
 
 
@@ -491,7 +507,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
      --timeout 20m
    ```
 
-   The release name should match the pattern for the service account name.
+   The release name should match the naming pattern used by the service accounts.
    * For **AWS**, an example is provided in the *IAM Role for Application* section.
    * For **Azure**, ensure the Kubernetes service account is annotated with the client ID for the Azure Workload
        Identity, like: `azure.workload.identity/client-id=<workload-identity-client-id>`.
@@ -542,7 +558,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
    > To inspect the Job logs, run:
    > 
    > ```sh
-   > kubectl logs -n <namespace> -l job-name=<job-name> -f
+   > kubectl logs -n <namespace> -l job-name=local-agent-test-job -f
    > ```
    > 
    > For example:
@@ -611,7 +627,7 @@ Maintainers are not currently accepting patches and contributions to this projec
 If you are an approved contributor, follow these steps to update the local agent to a new version:
 
 1. Create a personal branch to make your changes.
-2. Open the chart.yaml in `local-agent` folder, and increment the versions in the Chart.yaml file (both the main version
+2. Open the `Chart.yaml` file in the `local-agent` folder and increment the version values in the Chart.yaml file (both the main version
    and versions in dependencies). This change is required because this Chart.yaml file is an umbrella chart and depends on
    other charts.
 3. Submit a PR to the main branch and wait for approval.
