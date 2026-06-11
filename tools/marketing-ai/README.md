@@ -26,6 +26,8 @@ After the analysis is complete, only the results are sent back to SAS Customer I
 data in your chosen environments while allowing you to take full advantage of the features of SAS Customer
 Intelligence 360.
 
+**Note:** As a best practice, you should open outside links in a new tab to keep this README open in the existing tab.
+
 <!-- ### What's New
 If applicable to your project, list new features you want users to be aware of.
 This section might supplement the Changelog file from the repository and only highlight important changes.
