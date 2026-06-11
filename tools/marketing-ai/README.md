@@ -361,7 +361,7 @@ information is used to set configuration values later in the deployment process.
        --identity-name "<user created Managed Identity Name>" \
        --resource-group "<azure resource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
-       --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-api-server" \
+       --subject "system:serviceaccount:<your-namespace>:ci360-analytic-mai-airflow-api-server" \
        --audience "api://AzureADTokenExchange"
      ```
      
@@ -381,7 +381,7 @@ information is used to set configuration values later in the deployment process.
        --identity-name "<user created Managed Identity Name>" \
        --resource-group "<azure resource group name>" \
        --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
-       --subject "system:serviceaccount:<your-namespace>:<release name>-airflow-worker" \
+       --subject "system:serviceaccount:<your-namespace>:ci360-analytic-mai-airflow-worker" \
        --audience "api://AzureADTokenExchange"
      ```
 
@@ -500,23 +500,18 @@ After the prerequisite steps are complete, run the validation tool to verify you
      running, which are required to complete the deployment.
 
    ```sh
-   helm upgrade --install <release name> ci360-helm-charts/sas-marketing-ai \
+   helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
      --version <CHART VERSION from section Set up the Helm repo> \
      --namespace <namespace created in Configure the Kubernetes Environment> \
      --values <values.yaml> \
      --timeout 20m
    ```
 
-   The release name should match the naming pattern used by the service accounts.
-   * For **AWS**, an example is provided in the *IAM Role for Application* section.
-   * For **Azure**, ensure the Kubernetes service account is annotated with the client ID for the Azure Workload
-       Identity, like: `azure.workload.identity/client-id=<workload-identity-client-id>`.
-
    For example:
 
    ```sh
    helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
-     --version 0.4.0 \
+     --version 0.39.2 \
      --namespace user-deployment-namespace \
      --values ./values-azure.yaml \
      --timeout 20m
@@ -527,10 +522,10 @@ After the prerequisite steps are complete, run the validation tool to verify you
 
    ```sh
    # List previous revisions
-   helm history <release name> -n <namespace>
+   helm history ci360-analytic-mai -n <namespace>
    
    # Roll back to a known good revision (for example, revision 3)
-   helm rollback <release name> 3 -n <namespace>
+   helm rollback ci360-analytic-mai 3 -n <namespace>
    ```
 
 2. Wait for pods to start before you proceed:
@@ -544,7 +539,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
 1. Run the Helm tests by entering this command:
 
    ```sh
-   helm test <release-name> --namespace <your namespace> --timeout 20m &
+   helm test ci360-analytic-mai --namespace <your namespace> --timeout 20m &
    ```
 
    For example:
