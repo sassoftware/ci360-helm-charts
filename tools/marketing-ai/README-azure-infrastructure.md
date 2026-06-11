@@ -55,9 +55,6 @@ other subfolders as needed inside this base location.
    | `mai` | Application data |
    | `airflow-logs` | Airflow log storage |
 
-3. Set the RBAC role **Storage Blob Data Contributor** on each container.
-4. (Recommended) Enable versioning on the storage account.
-
 
 ## 3. Identity and Access Control (Workload Identity)
 
