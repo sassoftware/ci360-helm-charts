@@ -50,17 +50,16 @@ Set up an account with a cloud-service provider, such as Amazon Web Services (AW
 
 Deploy and configure a Kubernetes cluster. The cluster must be configured to connect to your
 cloud-service provider. For more information, see
-[https://kubernetes.io/docs/setup/](https://kubernetes.io/docs/setup/).
+<a href="https://kubernetes.io/docs/setup/" target="_blank">https://kubernetes.io/docs/setup/</a>.
 
 For detailed cluster requirements, node configuration, IAM permissions, and storage class
 prerequisites specific to your cloud provider, see:
 
-- [AWS Infrastructure Requirements](./README-aws-infrastructure.md)
-- [Azure Infrastructure Requirements](./README-azure-infrastructure.md)
+- <a href="./README-aws-infrastructure.md" target="_blank">AWS Infrastructure Requirements</a>
+- <a href="./README-azure-infrastructure.md" target="_blank">Azure Infrastructure Requirements</a>
 
 ### Collect the Required Deployment Information
-Based on the cloud provider where you will deploy the local agent, find the corresponding values in the table below. This
-information is used to set configuration values later in the deployment process.
+Gather the deployment-specific configuration values that are listed in the following table for your cloud provider. Some values are obtained from your cloud environment, while others are provided by SAS. You will use these values later to populate the local agent YAML configuration file.
 
 <table role="table" style="width: 100%;">
      <colgroup>
@@ -69,117 +68,265 @@ information is used to set configuration values later in the deployment process.
        <col span="1" style="width: 20%;">
        <col span="1" style="width: 50%;">
      </colgroup>
-     <thead style="background-color: #0766d1; font-weight: bold;">
-       <tr>
-         <th>Parameter</th>
-         <th>Sample values for - AWS</th>
-         <th>Sample values for - Azure</th>
-         <th>Description</th>
-       </tr>
-     </thead>
-     <tbody>
-       <tr>
-         <td>_agentpool</td>
-         <td>Not Applicable</td>
-         <td>agentpool</td>
-         <td>Traverse to AKS cluster -> settings -> node pools</td>
-       </tr>
-       <tr>
-            <td> _storageAccountName</td>
-            <td>Not Applicable</td>
-            <td>Required</td>
-            <td>Azure Storage Account service</td> 
-       </tr>
-       <tr>
-         <td>_dagsStorageClassName</td>
-         <td>efs-sc</td>
-         <td>azurefile-csi</td>
-         <td>Used for sharing DAGs across different pods.</td>
-       </tr>
-       <tr>
-         <td>_externalGatewayHost</td>
-         <td>Required</td>
-         <td>Required</td>
-         <td>To find this value, sign into SAS Customer Intelligence 360 (with an admin user) and navigate to <strong>General settings</strong> →  <strong>Access Points</strong>.</td>
-       </tr>
-       <tr>
-         <td>_k8sAuthSecretName</td>
-         <td>Required</td>
-         <td>Required</td>
-         <td>
-           Name of the Kubernetes secret that you created in step 4 of the prerequisite section "Configure the Kubernetes Environment".<br><br>This value must match namespace and secret that you created during that step.
-         </td>
-       </tr>
-       <tr>
-         <td>_remoteBaseLogFolder</td>
-         <td> s3://&lt;global.storageBucket, MAI_INTERNAL_STORAGE_BUCKET&gt;/mai/logs/local-agent</td>
-         <td>wasb://airflow-logs@&lt;blob bucket name&gt;.blob.core.windows.net/logs</td>
-         <td>Used to push logs to the log folder.</td>
-       </tr>
-       <tr>
-         <td>_s3BucketName</td>
-         <td>ci-360-data-local-agent</td>
-         <td>Not Applicable</td>
-         <td>Used for storing DAGs in an S3 bucket or Azure blob.</td>
-       </tr>
-       <tr>
-         <td>_serviceRole</td>
-         <td>Application service role ARN</td>
-         <td>Not Applicable</td>
-         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
-       </tr>
-       <tr>
-         <td>_storageClassName</td>
-         <td>gp2</td>
-         <td>managed-csi</td>
-         <td>Used for PVC creation, which acts as a hard disk inside Kubernetes.</td>
-       </tr>
-       <tr>
-         <td>_workloadIdentityClientId</td>
-         <td>Not Applicable</td>
-         <td>
-           &lt;Azure client ID&gt;<br><br>
-         </td>
-         <td>Enables access to cloud services. <br><br> To view this value in Azure, navigate to <strong>Azure Portal</strong> → <strong>Managed Identities</strong> → <strong>&lt;your identity&gt;</strong> → <strong>Overview</strong> → &lt;client ID&gt;.</td>
-       </tr>
-       <tr>
-         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT<br>login<br>password</td>
-         <td>Not Applicable</td>
-         <td>
-           login: &lt;storage account name&gt;<br>
-           password: &lt;storage account key&gt;
-         </td>
-         <td>Used to create the Airflow default connection for Azure.</td>
-       </tr> 
-       <tr>
-         <td>global.fleets.hostName</td>
-         <td>Required</td>
-         <td>Required</td>
-         <td>The following regional fleet API gateway endpoints are available for deployment, choose as per your production region:
-           <ul>
-             <li>fleetsapigw-prod-apn.ci360.sas.com (Asia Pacific North)</li>
-             <li>fleetsapigw-prod-euw.ci360.sas.com (Europe West)</li>
-             <li>fleetsapigw-prod-mum.ci360.sas.com (Mumbai)</li>
-             <li>fleetsapigw-prod-syd.ci360.sas.com (Sydney)</li>
-             <li>fleetsapigw-prod-use.ci360.sas.com (US East)</li>
-             <li>fleetsapigw-training.ci360.sas.com (Training Environment)</li>
-           </ul>
-         </td>
-       </tr>
-       <tr>
-         <td>global.fleets.tenant</td>
-         <td>Tenant moniker for the tenant</td>
-         <td>Tenant moniker for the tenant</td>
-         <td>Used to authenticate with the external API gateway. This value is created by SAS when the tenant is onboarded.<br><br>To find this value, in the user interface, click the user button and select <strong>About</strong>.</td>
-       </tr>
-        <tr>
-         <td>airflow.extraEnv - AIRFLOW_CONN_WASB_DEFAULT | login, password</td>
-         <td>Not Applicable</td>
-         <td>login: '&lt;storage account name&gt;' <br> password: '&lt;storage account key&gt;'</td>
-         <td>Used to create the default Airflow connection for Azure. <br><br> To get these values, refer to these locations:<ul><li>_connectionString login = See <strong>&lt;account name&gt;</strong> → <strong>&lt;Blob storage name&gt;</strong></li><li>password = See <strong>&lt;account key&gt;</strong> → <strong>&lt;String Value&gt;</strong></li></ul></td>
-       </tr>
-     </tbody>
-   </table>
+ <thead style="background-color: #0766d1; font-weight: bold;">
+  <tr>
+   <th>Parameter</th>
+   <th>Required?</th>
+   <th>AWS Value</th>
+   <th>Azure Value</th>
+   <th>Comments</th>
+  </tr>
+ </thead>
+ <tr>
+  <td>
+  <p>_agentpool</p>
+  </td>
+  <td>
+  <p>Azure only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>Node pool name (for example,
+  agentpool)</p>
+  </td>
+  <td>
+  <p>In AKS, navigate to <b>Settings</b>
+  &gt; <b>Node Pools</b>.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_storageAccountName</p>
+  </td>
+  <td>
+  <p>Azure only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>Azure Storage Account name</p>
+  </td>
+  <td>
+  <p>Name of the Azure Storage
+  Account that is used by the deployment.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_dagsStorageClassName</p>
+  </td>
+  <td>
+  <p>Yes</p>
+  </td>
+  <td>
+  <p>efs-sc</p>
+  </td>
+  <td>
+  <p>azurefile-csi</p>
+  </td>
+  <td>
+  <p>Storage class that is used to
+  share DAGs across pods.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_externalGatewayHost</p>
+  </td>
+  <td>
+  <p>Yes</p>
+  </td>
+  <td>
+  <p>Customer-specific value</p>
+  </td>
+  <td>
+  <p>Customer-specific value</p>
+  </td>
+  <td>
+  <p>In SAS Customer Intelligence
+  360, navigate to <b>General Settings</b> &gt; <b>Access Points</b>.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_k8sAuthSecretName</p>
+  </td>
+  <td>
+  <p>Yes</p>
+  </td>
+  <td>
+  <p>Kubernetes secret name</p>
+  </td>
+  <td>
+  <p>Kubernetes secret name</p>
+  </td>
+  <td>
+  <p>Value must match the secret and
+  namespace that were created during configuration of the Kubernetes
+  environment.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_remoteBaseLogFolder</p>
+  </td>
+  <td>
+  <p>Yes</p>
+  </td>
+  <td>
+  <p>s3:///mai/logs/local-agent</p>
+  </td>
+  <td>
+  <p>wasb://airflow-logs@.blob.core.windows.net/logs</p>
+  </td>
+  <td>
+  <p>Location used for Airflow log
+  storage.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_s3BucketName</p>
+  </td>
+  <td>
+  <p>AWS only</p>
+  </td>
+  <td>
+  <p>S3 bucket name</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>Bucket used to store DAG files.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_serviceRole</p>
+  </td>
+  <td>
+  <p>AWS only</p>
+  </td>
+  <td>
+  <p>IAM role ARN</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>IAM role that is used to grant
+  access to required cloud services.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_storageClassName</p>
+  </td>
+  <td>
+  <p>Yes</p>
+  </td>
+  <td>
+  <p>gp2</p>
+  </td>
+  <td>
+  <p>managed-csi</p>
+  </td>
+  <td>
+  <p>Storage class that is used for
+  persistent volume claims (PVCs).</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_workloadIdentityClientId</p>
+  </td>
+  <td>
+  <p>Azure only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>Managed Identity Client ID</p>
+  </td>
+  <td>
+  <p>Azure Portal &gt; Managed
+  Identities &gt; &gt; Overview.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>AIRFLOW_CONN_WASB_DEFAULT
+  (login/password)</p>
+  </td>
+  <td>
+  <p>Azure only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>Storage account name and storage
+  account key</p>
+  </td>
+  <td>
+  <p>Value that is used to create the
+  default Airflow Azure Blob Storage connection.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>hostName</p>
+  </td>
+  <td>
+  <p>Yes</p>
+  </td>
+  <td>
+  <p>Regional endpoint</p>
+  </td>
+  <td>
+  <p>Regional endpoint</p>
+  </td>
+  <td>
+  <p>Value of the fleet API endpoint for your region. Configure this value in the <b>global</b>
+  &gt; <b>fleets</b> section of the YAML file.</p><p>Select one of the following the fleet API gateway
+  endpoints, based on your region:</p>
+  <ul>
+    <li><strong>United States:</strong> fleetsapigw-prod-use.ci360.sas.com</li>
+    <li><strong>Europe:</strong> fleetsapigw-prod-euw.ci360.sas.com</li>
+    <li><strong>Asia Pacific North:</strong> fleetsapigw-prod-apn.ci360.sas.com</li>
+    <li><strong>Mumbai:</strong> fleetsapigw-prod-mum.ci360.sas.com</li>
+    <li><strong>Sydney:</strong> fleetsapigw-prod-syd.ci360.sas.com</li>
+    <li><strong>Training Environment:</strong> fleetsapigw-training.ci360.sas.com</li>
+  </ul>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>tenant</p>
+  </td>
+  <td>
+  <p>Yes</p>
+  </td>
+  <td>
+  <p>Tenant moniker</p>
+  </td>
+  <td>
+  <p>Tenant moniker</p>
+  </td>
+  <td>
+  <p>Configure this value in the <b>global</b>
+  &gt; <b>fleets</b> section of the YAML file. This value is provided by SAS
+  when the tenant is onboarded.</p>
+  <p>To find the value in SAS
+  Customer Intelligence 360, navigate&nbsp;<b>User Menu &gt; About</b>.</p>
+  </td>
+ </tr>
+</table>
 
 ### Configure the Required Tools
 
@@ -188,10 +335,11 @@ information is used to set configuration values later in the deployment process.
    * In Azure Cloud Shell, select Bash as the default shell.
 2. Check the installed Helm version:
 
-     ```sh
-     helm version --short
-     ```
-**Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+   ```sh
+   helm version --short
+   ```
+
+   **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
 
 3. If Helm is not installed, use the following commands to install the correct version
 
@@ -207,35 +355,35 @@ information is used to set configuration values later in the deployment process.
      DESIRED_VERSION=v3.18.1 ./get_helm.sh
      ```
 
-4. If Helm is installed and the version is *not* 3.18/3.19, use the following command to install and update the correct version:
+4. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
 
-     ```sh
-     mkdir -p $HOME/.local/bin && \
-     export PATH="$HOME/.local/bin:$PATH" && \
-     echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
-     wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
-     tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
-     mv linux-amd64/helm $HOME/.local/bin/helm && \
-     rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
-     ```
-     
-     ```sh
-     #Clear terminal cache
-     hash -r
-     ```
-     
-     ```sh
-     #Check helm version
-     helm version
-     ```
+   ```sh
+   mkdir -p $HOME/.local/bin && \
+   export PATH="$HOME/.local/bin:$PATH" && \
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
+   wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
+   tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
+   mv linux-amd64/helm $HOME/.local/bin/helm && \
+   rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
+   ```
+
+   ```sh
+   #Clear terminal cache
+   hash -r
+   ```
+
+   ```sh
+   #Check helm version
+   helm version
+   ```
 
 5. Verify that you have the following tools installed, with the minimum supported versions:
-      | Tool | Minimum Version |
-      |------|-----------------|
-      | Helm | = 3.18.XX or 3.19.XX |
-      | kubectl | >= v1.27.0 |
-      | AWS CLI | >= 2.18.1 |
-      | Azure CLI | >= 2.83.0 |
+   | Tool | Minimum Version |
+   |------|-----------------|
+   | Helm | = 3.18.XX or 3.19.XX |
+   | kubectl | >= v1.27.0 |
+   | AWS CLI | >= 2.18.1 |
+   | Azure CLI | >= 2.83.0 |
 
 6. Connect to your Kubernetes cluster
    
@@ -342,48 +490,48 @@ information is used to set configuration values later in the deployment process.
 
 3. (Azure only) Add your namespace to the Managed Identity definition.
 
-     For Azure deployments that use Workload Identity, you must create federated credentials that bind the Kubernetes
-     service accounts in your namespace to the Azure Managed Identity.
+   For Azure deployments that use Workload Identity, you must create federated credentials that bind the Kubernetes
+   service accounts in your namespace to the Azure Managed Identity.
 
-     The examples below include placeholders, which you should replace based on this information:
+   The examples below include placeholders, which you should replace based on this information:
 
-     | Placeholder | Description |
-     |:------------|:------------|
-     | < your-namespace > | the namespace you created in step 2 |
-     | < azure resource group name > | the resource group that contains the Managed Identity |
-     | "--issuer" | use the issuer for your AKS cluster (the region and IDs will differ) |
+   | Placeholder | Description |
+   |:------------|:------------|
+   | < your-namespace > | the namespace you created in step 2 |
+   | < azure resource group name > | the resource group that contains the Managed Identity |
+   | "--issuer" | use the issuer for your AKS cluster (the region and IDs will differ) |
 
-     Use these examples:
+   Use these examples:
 
-     ```sh
-     az identity federated-credential create \
-       --name "api-server-sa-<your-namespace>" \
-       --identity-name "<user created Managed Identity Name>" \
-       --resource-group "<azure resource group name>" \
-       --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
-       --subject "system:serviceaccount:<your-namespace>:ci360-analytic-mai-airflow-api-server" \
-       --audience "api://AzureADTokenExchange"
-     ```
-     
-     ```sh
-     az identity federated-credential create \
-       --name "orchestrator-sa-<your-namespace>" \
-       --identity-name "<user created Managed Identity Name>" \
-       --resource-group "<azure resource group name>" \
-       --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
-       --subject "system:serviceaccount:<your-namespace>:ci360-satellite" \
-       --audience "api://AzureADTokenExchange"
-     ```
-     
-     ```sh
-     az identity federated-credential create \
-       --name "airflow-worker-federated-credential-<your-namespace>" \
-       --identity-name "<user created Managed Identity Name>" \
-       --resource-group "<azure resource group name>" \
-       --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
-       --subject "system:serviceaccount:<your-namespace>:ci360-analytic-mai-airflow-worker" \
-       --audience "api://AzureADTokenExchange"
-     ```
+   ```sh
+   az identity federated-credential create \
+     --name "api-server-sa-<your-namespace>" \
+     --identity-name "<user created Managed Identity Name>" \
+     --resource-group "<azure resource group name>" \
+     --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
+     --subject "system:serviceaccount:<your-namespace>:ci360-analytic-mai-airflow-api-server" \
+     --audience "api://AzureADTokenExchange"
+   ```
+
+   ```sh
+   az identity federated-credential create \
+     --name "orchestrator-sa-<your-namespace>" \
+     --identity-name "<user created Managed Identity Name>" \
+     --resource-group "<azure resource group name>" \
+     --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
+     --subject "system:serviceaccount:<your-namespace>:ci360-satellite" \
+     --audience "api://AzureADTokenExchange"
+   ```
+
+   ```sh
+   az identity federated-credential create \
+     --name "airflow-worker-federated-credential-<your-namespace>" \
+     --identity-name "<user created Managed Identity Name>" \
+     --resource-group "<azure resource group name>" \
+     --issuer "<Azure cluster -> Settings -> Security Configuration -> OpenID Connect (OIDC) -> Issuer URL>" \
+     --subject "system:serviceaccount:<your-namespace>:ci360-analytic-mai-airflow-worker" \
+     --audience "api://AzureADTokenExchange"
+   ```
 
 
 4. Create Kubernetes secrets for these values:
@@ -442,7 +590,7 @@ information is used to set configuration values later in the deployment process.
 2. Set configuration values.
 
    Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
-   https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai
+   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
 
    For example:
    * **AWS:** `values-aws.yaml`
@@ -461,7 +609,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
 > **Important:** Do not proceed with deployment until all errors are resolved.
 
 1. Download the prerequisite validation script (`validate-configuration.sh`) from this location:<br>
-   [https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai](https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai)  
+   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
 
 2. Upload the script to your cloud console.
 
@@ -638,6 +786,6 @@ This project is licensed under the Apache 2.0 License.
 ## Additional Resources
 
 <!-- TODO: Insert link to Help Center topic -->
-* [Helm Documentation](https://helm.sh/docs/)
-* [Kubernetes Documentation](https://kubernetes.io/docs/)
-* [Airflow Documentation](https://airflow.apache.org/docs/)
+* <a href="https://helm.sh/docs/" target="_blank">Helm Documentation</a>
+* <a href="https://kubernetes.io/docs/" target="_blank">Kubernetes Documentation</a>
+* <a href="https://airflow.apache.org/docs/" target="_blank">Airflow Documentation</a>
