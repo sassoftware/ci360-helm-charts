@@ -64,8 +64,7 @@ through service accounts. This enables access without requiring that you hardcod
 ### Managed Identity Setup
 
 1. Create a managed identity named `aks-workload-identity-airflow`.
-2. Assign the role **Storage Blob Data Contributor** to this identity on the target storage account.
-3. Assign the workload identity to the storage account.
+2. Assign the role **Storage Blob Data Contributor** to this identity on the target resource group.
 
 ### Flow of Pod Access to Azure Resources
 
