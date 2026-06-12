@@ -402,7 +402,16 @@ information is used to set configuration values later in the deployment process.
       --from-literal=password=<the API user definition's secret> \
       --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
+### Install Service monitor CRDs
 
+1. Check if CRDs exists:
+      ```sh
+    kubectl get crd servicemonitors.monitoring.coreos.com
+    ```
+2. Deploy CRDs if it does not exist:
+     ```sh
+    kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+    ```
 ### Set up the Helm repo
    
  1. Get the public helm repo and check the available versions:
