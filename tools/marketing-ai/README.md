@@ -335,59 +335,87 @@ Gather the deployment-specific configuration values that are listed in the follo
 1. Make sure that you are using Bash as the shell environment.
    * AWS CloudShell uses Bash by default.
    * In Azure Cloud Shell, select Bash as the default shell.
-2. Check the installed Helm version:
+   
+2. Run the prerequisite script to install the required packages. Use the `setup-prerequisites-tools.sh` script to install them:
 
-   ```sh
-   helm version --short
-   ```
+      1. Download the `setup-prerequisites-tools.sh` script from this location:
+         [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
 
-   **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+      2. In case you are using cloud shell, you will need to upload the file to cloudshell.
+      
+      3. Change the permissions to make the script executable:
 
-3. If Helm is not installed, use the following commands to install the correct version
+         ```sh
+         chmod +x setup-prerequisites-tools.sh
+         ```
 
-     ```sh
-     curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-     ```
-     
-     ```sh
-     chmod 700 get_helm.sh
-     ```
-     
-     ```sh
-     DESIRED_VERSION=v3.18.1 ./get_helm.sh
-     ```
+      4. Run the script for the appropriate cloud provider:
 
-4. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
+         ```sh
+         ./setup-prerequisites-tools.sh --cloud <aws | azure>
+         ```
 
-   ```sh
-   mkdir -p $HOME/.local/bin && \
-   export PATH="$HOME/.local/bin:$PATH" && \
-   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
-   wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
-   tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
-   mv linux-amd64/helm $HOME/.local/bin/helm && \
-   rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
-   ```
+         To view the usage options, run this command:
 
-   ```sh
-   #Clear terminal cache
-   hash -r
-   ```
+         ```sh
+         ./setup-prerequisites-tools.sh --help
+         ```
 
-   ```sh
-   #Check helm version
-   helm version
-   ```
+      5. Verify that the script completes successfully and that all the tools are installed with the correct versions.
 
-5. Verify that you have the following tools installed, with the minimum supported versions:
-   | Tool | Minimum Version |
-   |------|-----------------|
-   | Helm | = 3.18.XX or 3.19.XX |
-   | kubectl | >= v1.27.0 |
-   | AWS CLI | >= 2.18.1 |
-   | Azure CLI | >= 2.83.0 |
+         | Tool | Minimum Version |
+         |------|-----------------|
+         | Helm | = 3.18.XX or 3.19.XX |
+         | kubectl | >= v1.27.0 |
+         | AWS CLI | >= 2.18.1 |
+         | Azure CLI | >= 2.83.0 |
 
-6. Connect to your Kubernetes cluster
+3. If the Helm deployment is not at the correct version:
+
+   1. Check the Helm version:
+      ```sh
+      helm version --short
+      ```
+      
+      **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+
+   2. If Helm is not installed, use the following commands to install the correct version
+   
+      ```sh
+      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      ```
+      
+      ```sh
+      chmod 700 get_helm.sh
+      ```
+      
+      ```sh
+      DESIRED_VERSION=v3.18.1 ./get_helm.sh
+      ```
+
+   3. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
+   
+      ```sh
+      mkdir -p $HOME/.local/bin && \
+      export PATH="$HOME/.local/bin:$PATH" && \
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
+      wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
+      tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
+      mv linux-amd64/helm $HOME/.local/bin/helm && \
+      rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
+      ```
+   
+      ```sh
+      #Clear terminal cache
+      hash -r
+      ```
+   
+      ```sh
+      #Check helm version
+      helm version
+      ```
+
+4. Connect to your Kubernetes cluster
    
    1. Sign in to your cloud account (AWS or the Azure CLI).
       
@@ -442,33 +470,6 @@ Gather the deployment-specific configuration values that are listed in the follo
            ```sh
            az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
            ```
-
-   2. If any of the required tools are not installed or are below the minimum version, use the `setup-prerequisites-tools.sh` script to install them:
-
-      1. Download the `setup-prerequisites-tools.sh` script from this location:
-         [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
-
-      2. In case you are using cloud shell, you will need to upload the file to cloudshell.
-      
-      3. Change the permissions to make the script executable:
-
-         ```sh
-         chmod +x setup-prerequisites-tools.sh
-         ```
-
-      4. Run the script for the appropriate cloud provider:
-
-         ```sh
-         ./setup-prerequisites-tools.sh --cloud <aws | azure>
-         ```
-
-         To view the usage options, run this command:
-
-         ```sh
-         ./setup-prerequisites-tools.sh --help
-         ```
-
-      5. Verify that the script completes successfully and all tools are installed with the correct versions.
 
 ### Configure the Kubernetes Environment
 
@@ -580,6 +581,8 @@ Gather the deployment-specific configuration values that are listed in the follo
     # Verify that the 'sas-marketing-ai' chart is available
     helm search repo ci360-helm-charts/sas-marketing-ai
     ```
+    
+    **Important**: Make note of the chart version for later steps in the deployment.
 
     Optionally, you can inspect the chart contents by running these commands:
 
@@ -676,7 +679,10 @@ After the prerequisite steps are complete, run the validation tool to verify you
      --timeout 20m
    ```
 
-   If an error occurs during install or upgrade, you must manually roll back to a previous successful release.
+   When you run this command, the console prints a message stating that the ci360-analytic-mai chart is
+   being installed.
+   
+   **Note:** If an error occurs during install or upgrade, you must manually roll back to a previous successful release.
    For example:
 
    ```sh
