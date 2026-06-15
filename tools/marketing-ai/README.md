@@ -541,7 +541,7 @@ Gather the deployment-specific configuration values that are listed in the follo
    * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
    * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
-     >**Note**: Make sure to use the following naming convention for API user "API-<tenant_moniker>-mai-<user_id>".
+     >**Important**: Make sure that the API user follows this naming convention: `API-<tenant_moniker>-mai-<user_id>`. The local agent cannot connect if the value "mai" is not in the name.
 
    Use a command like this example:
 
