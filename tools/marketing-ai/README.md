@@ -682,7 +682,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
    When you run this command, the console prints a message stating that the ci360-analytic-mai chart is
    being installed.
    
-   **Note:** If an error occurs during install or upgrade, you must manually roll back to a previous successful release.
+   **Note:** If you are upgrading the local agent from a previous version and an error occurs, you must manually roll back to an earlier release that was successfully deployed.
    For example:
 
    ```sh
