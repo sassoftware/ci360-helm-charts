@@ -341,7 +341,7 @@ Gather the deployment-specific configuration values that are listed in the follo
       1. Download the `setup-prerequisites-tools.sh` script from this location:
          [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
 
-      2. In case you are using cloud shell, you will need to upload the file to cloudshell.
+      2. If you are deploying to a cloud environment, upload the file to the cloud shell.
       
       3. Change the permissions to make the script executable:
 
