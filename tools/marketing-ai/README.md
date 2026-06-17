@@ -444,8 +444,7 @@ Gather the deployment-specific configuration values that are listed in the follo
  
            If the command returns false, local accounts are enabled.
            
-        3. Enable local accounts on the AKS cluster:
-           >**Note**: If local account is disabled, ONLY then execute this step.
+        3. If local accounts are disabled, enter this command:
 
            ```sh
            az aks update -g <resource-group> -n <cluster-name> --enable-local-accounts
