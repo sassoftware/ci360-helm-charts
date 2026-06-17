@@ -1,4 +1,4 @@
-# Local Agent Installation for Marketing AI in SAS Customer Intelligence 360
+# Local Agent Installation for SAS 360 Marketing AI in SAS Customer Intelligence 360
 
 On this page:
 
@@ -12,8 +12,8 @@ On this page:
 
 ## Overview
 
-Use SAS Marketing AI to accelerate your use of analytics. Offload the routine analysis problems that you face
-so that you can free up time and resources to focus on more difficult analytical challenges. SAS Marketing AI
+Use SAS 360 Marketing AI to accelerate your use of analytics. Offload the routine analysis problems that you face
+so that you can free up time and resources to focus on more difficult analytical challenges. SAS 360 Marketing AI
 can guide you through the steps to set up analytics and modeling for common marketing scenarios without the
 expectation that you have access to a data scientist.
 
@@ -415,11 +415,8 @@ Gather the deployment-specific configuration values that are listed in the follo
       helm version
       ```
 
-4. Connect to your Kubernetes cluster
-   
-   1. Sign in to your cloud account (AWS or the Azure CLI).
-      
-      (Azure only) Make sure that you have **contributor** access.
+4. Connect to your Kubernetes cluster. First, sign in to your cloud account (AWS or the Azure CLI).
+   Then, complete the steps below based on your provider:
 
    * **AWS:** Complete these steps:
 
@@ -435,7 +432,8 @@ Gather the deployment-specific configuration values that are listed in the follo
 
    * **Azure:** Complete these steps:
 
-        1. Check if azure local accounts are enabled
+        1. Make sure that you have **contributor** access.
+        2. Check if azure local accounts are enabled
            ```sh
             az aks show \
             --resource-group <resource-group> \
@@ -446,7 +444,7 @@ Gather the deployment-specific configuration values that are listed in the follo
  
            If the command returns false, local accounts are enabled.
            
-        2. Enable local accounts on the AKS cluster:
+        3. Enable local accounts on the AKS cluster:
            >**Note**: If local account is disabled, ONLY then execute this step.
 
            ```sh
@@ -459,7 +457,7 @@ Gather the deployment-specific configuration values that are listed in the follo
            az aks update -g azure-resource-group-name -n azure-cluster-name --enable-local-accounts
            ```
 
-        3. Get the cluster credentials:
+        4. Get the cluster credentials:
 
            ```sh
            az aks get-credentials -g <resource-group> -n <cluster-name> --admin --overwrite-existing
@@ -553,16 +551,19 @@ Gather the deployment-specific configuration values that are listed in the follo
       --from-literal=password=<the API user definition's secret> \
       --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
+
 ### Install Service monitor CRDs
 
 1. Check if CRDs exists:
-      ```sh
-    kubectl get crd servicemonitors.monitoring.coreos.com
-    ```
+   ```sh
+   kubectl get crd servicemonitors.monitoring.coreos.com
+   ```
+
 2. Deploy CRDs if it does not exist:
-     ```sh
-    kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-    ```
+   ```sh
+   kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+   ```
+
 ### Set up the Helm repo
    
  1. Get the public helm repo and check the available versions:
@@ -610,10 +611,10 @@ Gather the deployment-specific configuration values that are listed in the follo
    * **AWS:** `values-aws.yaml`
    * **Azure:** `values-azure.yaml`
 
- 3. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
+3. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
    in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
 
- 4. Upload the modified file through the cloud console.
+4. Upload the modified file through the cloud console.
   
 
 ### Validate Prerequisite Configuration
@@ -679,24 +680,67 @@ After the prerequisite steps are complete, run the validation tool to verify you
      --timeout 20m
    ```
 
-   When you run this command, the console prints a message stating that the ci360-analytic-mai chart is
-   being installed.
+   When you run this command:
+   1. The console prints a message stating that the ci360-analytic-mai chart is
+      being installed.
+   2. After the chart is installed, the console prints a message that the helm chart
+      is upgraded and includes information about the chart. The **Status** value should be
+      `Deployed`.
    
-   **Note:** If you are upgrading the local agent from a previous version and an error occurs, you must manually roll back to an earlier release that was successfully deployed.
-   For example:
+   **Note:** If you an error occurs during this process, you must manually roll back the helm deployment to a previous revision.
+   
+   1. To list previous revisions, use this command:
 
-   ```sh
-   # List previous revisions
-   helm history ci360-analytic-mai -n <namespace>
-   
-   # Roll back to a known good revision (for example, revision 3)
-   helm rollback ci360-analytic-mai 3 -n <namespace>
-   ```
+      ```sh
+      helm history ci360-analytic-mai -n <namespace>
+      ```
+
+   2. Choose one of these options:
+
+      * For first-time deployments of the local agent, roll back to revision 1:
+
+        ```sh
+        helm rollback ci360-analytic-mai 1 -n <namespace>
+        ```
+
+      * If you are upgrading the local agent, roll back to a previous, successful deployment (for example, revision 3)
+
+        ```sh
+        helm rollback ci360-analytic-mai 3 -n <namespace>
+        ```
 
 2. Wait for pods to start before you proceed:
 
    ```sh
    kubectl -n <namespace created in Configure the Kubernetes Environment> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
+   ```
+   
+   The output should look this:
+
+   ```sh
+   pod/ci360-analytic-mai-airflow-api-server-585756b9c-qcgcf condition met
+   pod/ci360-analytic-mai-airflow-api-server-585756b9c-rfc4p condition met
+   pod/ci360-analytic-mai-airflow-dag-processor-7666bbcd5b-bwgg5 condition met
+   pod/ci360-analytic-mai-airflow-dag-processor-7666bbcd5b-fn72q condition met
+   pod/ci360-analytic-mai-airflow-scheduler-555784d4f4-d9czd condition met
+   pod/ci360-analytic-mai-airflow-scheduler-555784d4f4-z5hj7 condition met
+   pod/ci360-analytic-mai-airflow-statsd-7c9f8955d6-sj7vk condition met
+   pod/ci360-analytic-mai-airflow-triggerer-0 condition met
+   pod/ci360-analytic-mai-airflow-worker-6bc496db75-xc4rl condition met
+   pod/ci360-analytic-mai-airflow-worker-high-memory-5f4865db64-jfzgh condition met
+   pod/ci360-analytic-mai-airflow-worker-high-priority-57564856bcjjhxn condition met
+   pod/ci360-analytic-mai-ci360-satellite-orchestra-67b4cc7686-s7cdt condition met
+   pod/ci360-analytic-mai-ci360-satellite-orchestra-67b4cc7686-zjgc6 condition met
+   pod/ci360-analytic-mai-ci360-satellite-proxy-5bb4859886-99gcn condition met
+   pod/ci360-analytic-mai-ci360-satellite-proxy-5bb4859886-w28ks condition met
+   pod/ci360-analytic-mai-postgresql-ha-pgpool-75f7577546-9fvl2 condition met
+   pod/ci360-analytic-mai-postgresql-ha-pgpool-75f7577546-z742l condition met
+   pod/ci360-analytic-mai-postgresql-ha-postgresql-0 condition met
+   pod/ci360-analytic-mai-postgresql-ha-postgresql-1 condition met
+   pod/ci360-analytic-mai-postgresql-ha-postgresql-2 condition met
+   pod/ci360-analytic-mai-redis-node-0 condition met
+   pod/ci360-analytic-mai-redis-node-1 condition met
+   pod/ci360-analytic-mai-redis-node-2 condition met
    ```
 
 ### Run Helm Tests and Verify Deployment
@@ -712,26 +756,49 @@ After the prerequisite steps are complete, run the validation tool to verify you
    ```sh
    helm test ci360-analytic-mai --namespace my-namespace-1 --timeout 20m &
    ```
+   
+   > **Note:** The final output of this command is the process ID, like `3528`.
 
-   > **Note:** While the above Job is in progress, inspect the logs for errors, and repeat the previous steps (if necessary) until the deployment is successful.
-   > 
-   > To inspect the Job logs, run:
-   > 
-   > ```sh
-   > kubectl logs -n <namespace> -l job-name=local-agent-test-job -f
-   > ```
-   > 
-   > For example:
-   > 
-   > ```sh
-   > kubectl logs -n my-namespace-1 -l job-name=local-agent-test-job -f
-   > ```
-   > 
-   > The `-f` option follows the logs in real time until you interrupt it (Ctrl+C).
+   While the test job is in progress, you can inspect the logs for errors, and repeat the previous steps (if necessary) until the
+   deployment is successful.
+   
+   To inspect the Job logs, run this command:
+   
+   ```sh
+   kubectl logs -n <namespace> -l job-name=local-agent-test-job -f
+   ```
+   
+   For example:
+   
+   ```sh
+   kubectl logs -n my-namespace-1 -l job-name=local-agent-test-job -f
+   ```
+   
+   (The `-f` option follows the logs in real time until you interrupt it (Ctrl+C).)
+   
+   For a successful deployment, the log files should contain entries like this example:
+   
+   ```sh
+   [INFO] All tests PASSED successfully
+   ================== Helm Test Job Completed
+   ==================
+   <path>$ NAME: ci360-analytic-mai
+   LAST DEPLOYED: <deployment date>
+   NAMESPACE: <namespace>
+   STATUS: Deployed
+   REVISION: 3
+   TEST SUITE: local-agent-test-job
+   LAST STARTED: <job start time>
+   LAST COMPLETED: <job end time>
+   PHASE:     Succeeded
+   ```
 
-2. Verify that all of these items are true:
-   * All pods are in the running state.
+2. Verify that these items are true:
+   * All pods are in the running state.   
    * There are no CrashLoopBackOff errors.
+   
+3. After the deployment is complete, return to the *User's Guide* for SAS Customer Intelligence 360
+   for more information about using SAS 360 Marketing AI.
 
 <!--
 ### New CI360 customer
