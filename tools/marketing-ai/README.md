@@ -563,7 +563,7 @@ Gather the deployment-specific configuration values that are listed in the follo
    kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
    ```
 
-### Set up the Helm repo
+### Set Up the Helm Repository
    
  1. Get the public helm repo and check the available versions:
 
@@ -601,9 +601,7 @@ Gather the deployment-specific configuration values that are listed in the follo
     helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
     ```
 
-2. Set configuration values.
-
-   Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
+2. Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
    <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
 
    For example:
