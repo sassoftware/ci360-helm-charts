@@ -2,8 +2,31 @@ apiVersion: v1
 entries:
   sas-marketing-ai:
   - apiVersion: v2
+    appVersion: 0.39.7
+    created: "2026-06-18T10:31:58.255319955Z"
+    dependencies:
+    - name: airflow
+      repository: file://../charts/airflow
+      version: 0.0.43
+    - name: postgresql-ha
+      repository: file://../charts/postgresql-ha
+      version: 0.0.43
+    - name: redis
+      repository: file://../charts/redis
+      version: 23.2.12
+    - name: ci360-satellite
+      repository: file://../charts/service
+      version: 0.0.43
+    description: A Helm chart for native components of SAS CI360 Marketing AI
+    digest: 452c7a0baa964fa1920ba82f87b3e540800518b52b9799b7992c01b367d6bf30
+    name: sas-marketing-ai
+    type: application
+    urls:
+    - marketing-ai/sas-marketing-ai-0.39.7.tgz
+    version: 0.39.7
+  - apiVersion: v2
     appVersion: 0.39.6
-    created: "2026-06-16T10:58:51.996595592Z"
+    created: "2026-06-18T10:31:58.220089889Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -26,7 +49,7 @@ entries:
     version: 0.39.6
   - apiVersion: v2
     appVersion: 0.39.5
-    created: "2026-06-16T10:58:51.965145584Z"
+    created: "2026-06-18T10:31:58.181508418Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -49,7 +72,7 @@ entries:
     version: 0.39.5
   - apiVersion: v2
     appVersion: 0.39.4
-    created: "2026-06-16T10:58:51.917726017Z"
+    created: "2026-06-18T10:31:58.137977143Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -72,7 +95,7 @@ entries:
     version: 0.39.4
   - apiVersion: v2
     appVersion: 0.39.3
-    created: "2026-06-16T10:58:51.870661191Z"
+    created: "2026-06-18T10:31:58.095457168Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -95,7 +118,7 @@ entries:
     version: 0.39.3
   - apiVersion: v2
     appVersion: 0.39.2
-    created: "2026-06-16T10:58:51.831582962Z"
+    created: "2026-06-18T10:31:58.048647185Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -118,7 +141,7 @@ entries:
     version: 0.39.2
   - apiVersion: v2
     appVersion: 0.39.1
-    created: "2026-06-16T10:58:51.805505158Z"
+    created: "2026-06-18T10:31:58.007888128Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -141,7 +164,7 @@ entries:
     version: 0.39.1
   - apiVersion: v2
     appVersion: 0.39.0
-    created: "2026-06-16T10:58:51.779203949Z"
+    created: "2026-06-18T10:31:57.982313153Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -164,7 +187,7 @@ entries:
     version: 0.39.0
   - apiVersion: v2
     appVersion: 0.36.0
-    created: "2026-06-16T10:58:51.75369072Z"
+    created: "2026-06-18T10:31:57.956627972Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -187,7 +210,7 @@ entries:
     version: 0.36.0
   - apiVersion: v2
     appVersion: 0.35.2
-    created: "2026-06-16T10:58:51.727542771Z"
+    created: "2026-06-18T10:31:57.930802852Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -210,7 +233,7 @@ entries:
     version: 0.35.2
   - apiVersion: v2
     appVersion: 0.34.2
-    created: "2026-06-16T10:58:51.703013996Z"
+    created: "2026-06-18T10:31:57.908343916Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -233,7 +256,7 @@ entries:
     version: 0.34.2
   - apiVersion: v2
     appVersion: 0.34.1
-    created: "2026-06-16T10:58:51.678267895Z"
+    created: "2026-06-18T10:31:57.882652496Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -256,7 +279,7 @@ entries:
     version: 0.34.1
   - apiVersion: v2
     appVersion: 0.34.0
-    created: "2026-06-16T10:58:51.652168188Z"
+    created: "2026-06-18T10:31:57.855909497Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -542,4 +565,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.9.0.tgz
     version: 0.9.0
-generated: "2026-06-16T10:58:51.626851775Z"
+generated: "2026-06-18T10:31:57.830694853Z"
