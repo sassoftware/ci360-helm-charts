@@ -5,6 +5,7 @@ On this page:
 * [Overview](#overview)
 * [Prerequisites](#prerequisites)
 * [Deploy the Local Agent](#deploy-the-local-agent)
+* [Backup and Restore](#backup-and-restore)
 * [Database Maintenance for the Local Agent](#database-maintenance-for-the-local-agent)
 * [Contributing](#contributing)
 * [License](#license)
@@ -756,6 +757,54 @@ Make learning and using your project as easy as possible!
 Provide workarounds and solutions to known problems.
 Organize troubleshooting information using subtopics, as appropriate.
 -->
+
+## Backup and Restore
+
+### Backup the Local Agent
+
+Use the `maila-backup.sh` script to create a backup of your Local Agent configuration and data.
+
+1. Download the backup script from this location:<br>
+   <a href="https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-backup.sh" target="_blank">https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-backup.sh</a>
+
+2. Change the permissions to make the script executable:
+
+   ```sh
+   chmod +x maila-backup.sh
+   ```
+
+3. Run the backup script:
+
+   ```sh
+   ./maila-backup.sh --release <your-release> --namespace <your-namespace> --output . --storage-type s3 --storage-path s3://ci-360-data-dev-us-east-1/mai/backups 
+   ```
+
+   The backup file will be created in your current directory with the format: `mai-backup-local-agent-YYYYMMDD-HHMMSS.tar.gz`
+
+### Restore from Backup
+
+Use the `maila-restore.sh` script to restore your Local Agent from a backup.
+
+1. Download the restore script from this location:<br>
+   <a href="https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-restore.sh" target="_blank">https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-restore.sh</a>
+
+2. Change the permissions to make the script executable:
+
+   ```sh
+   chmod +x maila-restore.sh
+   ```
+
+3. Run the restore script:
+
+   ```sh
+   ./maila-restore.sh --release <your-release> --namespace <your-namespace> --output . --storage-type s3 --storage-path s3://ci-360-data-dev-us-east-1/mai/backups --backup <backup-file.tar.gz>
+   ```
+
+4. Verify the restoration is complete by checking pod status:
+
+   ```sh
+   kubectl get pods -n <your-namespace>
+   ```
 
 ## Database Maintenance for the Local Agent
 
