@@ -51,7 +51,7 @@ Optional:
 Examples:
   $0 --cloud aws --values values-aws.yaml --namespace mai-ns --aws-profile my-sso-profile
   $0 --cloud azure --values values-azure.yaml --namespace mai-ns
-  $0 --cloud aws --values values-aws.yaml --skip-cloud AWS_PROFILE=my-sso-profile 
+  $0 --cloud aws --values values-aws.yaml --skip-cloud AWS_PROFILE=my-sso-profile
   $0 --cloud aws --values values-aws.yaml
 EOF
 exit 0
@@ -87,24 +87,24 @@ detect_yq() {
 # Handles format: _varName: &anchorName "value"
 parse_yaml_anchors() {
   local file="$1"
-  
+
   # Clear previous anchors
   YAML_ANCHORS=()
-  
+
   # Read file and extract anchor definitions
   while IFS= read -r line || [[ -n "$line" ]]; do
     # Skip empty lines and comments
     [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-    
+
     # Match pattern: _something: &anchorName "value" or &anchorName value
     # Also match: key: &anchorName "value"
     if [[ "$line" =~ \&([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]+(.*) ]]; then
       local anchor_name="${BASH_REMATCH[1]}"
       local anchor_value="${BASH_REMATCH[2]}"
-      
+
       # Clean up the value - remove quotes and whitespace
       anchor_value=$(echo "$anchor_value" | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "$anchor_value")
-      
+
       # Store in associative array
       YAML_ANCHORS["$anchor_name"]="$anchor_value"
     fi
@@ -115,7 +115,7 @@ parse_yaml_anchors() {
 # Usage: resolve_anchor "*s3BucketName"
 resolve_anchor() {
   local value="$1"
-  
+
   # Check if value is an anchor reference (*anchorName)
   if [[ "$value" =~ ^\*([a-zA-Z_][a-zA-Z0-9_]*)$ ]]; then
     local anchor_name="${BASH_REMATCH[1]}"
@@ -124,7 +124,7 @@ resolve_anchor() {
       return 0
     fi
   fi
-  
+
   # Return original value if not an anchor reference or anchor not found
   echo "$value"
 }
@@ -157,7 +157,7 @@ yaml_get() {
 
   # Clean up the result - remove surrounding quotes but preserve empty string detection
   result=$(echo "$result" | tr -d '\r' | xargs 2>/dev/null || echo "$result")
-  
+
   # Check if result is just empty quotes "" or ''
   if [[ "$result" == '""' || "$result" == "''" ]]; then
     result=""
@@ -165,12 +165,12 @@ yaml_get() {
     # Remove quotes from non-empty values
     result=$(echo "$result" | tr -d '"' | tr -d "'" | xargs 2>/dev/null || echo "$result")
   fi
-  
+
   # Resolve anchor reference if present
   if is_unresolved_anchor "$result"; then
     result=$(resolve_anchor "$result")
   fi
-  
+
   echo "$result"
 }
 
@@ -183,12 +183,12 @@ yaml_grep_all() {
 
   while IFS= read -r line; do
     local value=$(echo "$line" | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
-    
+
     # Resolve anchor if it's a reference
     if is_unresolved_anchor "$value"; then
       value=$(resolve_anchor "$value")
     fi
-    
+
     [[ -n "$value" && "$value" != "null" ]] && results="${results}"$'\n'"${value}"
   done < <(grep -E "^[[:space:]]*${key_name}:" "$file" 2>/dev/null || true)
 
@@ -201,9 +201,9 @@ yaml_grep_all() {
 yaml_get_anchor() {
   local file="$1"
   local anchor_var="$2"
-  
+
   local result=$(grep -E "^${anchor_var}:" "$file" 2>/dev/null | head -1 | sed 's/.*&[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
-  
+
   echo "$result"
 }
 
@@ -229,7 +229,7 @@ yaml_extract_iam_role_names() {
 yaml_extract_azure_workload_identity() {
   local file="$1"
   local results=""
-  
+
   while IFS= read -r line; do
     local value=$(echo "$line" | sed 's/.*:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '\r' | xargs 2>/dev/null || echo "")
     if is_unresolved_anchor "$value"; then
@@ -237,7 +237,7 @@ yaml_extract_azure_workload_identity() {
     fi
     [[ -n "$value" ]] && results="${results}"$'\n'"${value}"
   done < <(grep -E "azure.workload.identity/client-id:" "$file" 2>/dev/null || true)
-  
+
   echo "$results" | sort -u | grep -v "^$" || echo ""
 }
 
@@ -295,6 +295,7 @@ STORAGE_BUCKET=$(yaml_get "$VALUES_FILE" "global.storageBucket")
 STORAGE_PREFIX=$(yaml_get "$VALUES_FILE" "global.storagePrefix")
 EXTERNAL_GATEWAY_HOST=$(yaml_get "$VALUES_FILE" "global.ExternalGatewayHost")
 K8S_AUTH_SECRET_NAME=$(yaml_get "$VALUES_FILE" "global.k8s_auth_secret_name")
+AIRFLOW_AUTH_SECRET_NAME=$(yaml_get "$VALUES_FILE" "global.airflowSimpleAuth.secretName")
 
 # Fleets settings
 FLEETS_MODE=$(yaml_get "$VALUES_FILE" "global.fleets.mode")
@@ -326,33 +327,33 @@ if [[ "$CLOUD" == "aws" ]]; then
   fi
 
   # Helper: run any aws command with the active profile
-  aws_cmd() { 
+  aws_cmd() {
     if [[ -n "$AWS_PROFILE" ]]; then
       aws "$@" --profile "$AWS_PROFILE"
     else
       aws "$@"
     fi
   }
-  
+
   # IAM roles
   IAM_ROLES=$(yaml_extract_iam_roles "$VALUES_FILE")
   IAM_ROLE_NAMES=$(yaml_extract_iam_role_names "$VALUES_FILE")
   SERVICE_ROLE_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_serviceRole")
-  
+
   # S3 bucket - fallback to anchor if yaml_get didn't resolve
   S3_BUCKET_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_s3BucketName")
   [[ -z "$STORAGE_BUCKET" || "$STORAGE_BUCKET" == "null" ]] && STORAGE_BUCKET="$S3_BUCKET_ANCHOR"
-  
+
   # Remote log folder
   REMOTE_LOG_FOLDER=$(yaml_get "$VALUES_FILE" "airflow.config.logging.remote_base_log_folder")
   [[ -z "$REMOTE_LOG_FOLDER" || "$REMOTE_LOG_FOLDER" == "null" ]] && REMOTE_LOG_FOLDER=$(yaml_get_anchor "$VALUES_FILE" "_remoteBaseLogFolder")
-  
+
   # Extract S3 log bucket from remote_base_log_folder
   S3_LOG_BUCKET=""
   if [[ -n "$REMOTE_LOG_FOLDER" && "$REMOTE_LOG_FOLDER" == s3://* ]]; then
     S3_LOG_BUCKET=$(echo "$REMOTE_LOG_FOLDER" | sed 's|s3://||' | cut -d'/' -f1)
   fi
-  
+
   # ECR registry URL from ExternalGatewayHost
   EXTERNAL_GW_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_externalGatewayHost")
   [[ -z "$EXTERNAL_GATEWAY_HOST" || "$EXTERNAL_GATEWAY_HOST" == "null" ]] && EXTERNAL_GATEWAY_HOST="$EXTERNAL_GW_ANCHOR"
@@ -360,14 +361,14 @@ fi
 
 # Azure-specific values
 if [[ "$CLOUD" == "azure" ]]; then
-  
+
   # Workload Identity
   AZURE_WORKLOAD_IDENTITY=$(yaml_extract_azure_identity_anchor "$VALUES_FILE")
   [[ -z "$AZURE_WORKLOAD_IDENTITY" ]] && AZURE_WORKLOAD_IDENTITY=$(yaml_extract_azure_workload_identity "$VALUES_FILE" | head -1)
-  
+
   # Node selector (agentpool)
   AGENTPOOL=$(yaml_get_anchor "$VALUES_FILE" "_agentpool")
-  
+
   # ExternalGatewayHost
   EXTERNAL_GW_ANCHOR=$(yaml_get_anchor "$VALUES_FILE" "_externalGatewayHost")
   [[ -z "$EXTERNAL_GATEWAY_HOST" || "$EXTERNAL_GATEWAY_HOST" == "null" ]] && EXTERNAL_GATEWAY_HOST="$EXTERNAL_GW_ANCHOR"
@@ -382,18 +383,18 @@ if [[ "$CLOUD" == "azure" ]]; then
 
   WASB_CONN_TYPE=$(echo "$WASB_CONN_RAW" | sed -n 's/.*"conn_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || echo "")
   WASB_HOST_RAW=$(echo "$WASB_CONN_RAW" | sed -n 's/.*"host"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || echo "")
-  
+
   # Resolve Helm template reference to actual anchor value
   # Handle pattern: {{ .Values.global.storageAccountName }}.blob.core.windows.net
   if [[ "$WASB_HOST_RAW" =~ \{\{.*\.Values\.global\.storageAccountName.*\}\} ]]; then
     # Try anchor first
     STORAGE_ACCOUNT_NAME=$(yaml_get_anchor "$VALUES_FILE" "_storageAccountName")
-    
+
     # Fallback to direct value
     if [[ -z "$STORAGE_ACCOUNT_NAME" ]]; then
       STORAGE_ACCOUNT_NAME=$(yaml_get "$VALUES_FILE" "global.storageAccountName")
     fi
-    
+
     if [[ -n "$STORAGE_ACCOUNT_NAME" && "$STORAGE_ACCOUNT_NAME" != "null" ]]; then
       WASB_HOST="${STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
     else
@@ -730,12 +731,20 @@ if [[ "$SKIP_K8S" == false ]]; then
           log_fail "Secret '${K8S_AUTH_SECRET_NAME}' not found — create before deployment"
         fi
       fi
-      
+
+      if [[ -n "$AIRFLOW_AUTH_SECRET_NAME" && ! "$AIRFLOW_AUTH_SECRET_NAME" =~ ^\* ]]; then
+        if kubectl get secret "$AIRFLOW_AUTH_SECRET_NAME" -n "$NAMESPACE" &>/dev/null; then
+          log_pass "Secret '${AIRFLOW_AUTH_SECRET_NAME}' exists"
+        else
+          log_fail "Secret '${AIRFLOW_AUTH_SECRET_NAME}' not found — create before deployment"
+        fi
+      fi
+
       # Check fleets.existingSecret ONLY when mode is "gateway"
       if [[ "$FLEETS_MODE" == "gateway" ]]; then
         # Trim whitespace and quotes from EXISTING_SECRET
         EXISTING_SECRET_CLEAN=$(echo "$EXISTING_SECRET" | tr -d '"' | tr -d "'" | xargs 2>/dev/null || echo "")
-        
+
         if [[ -n "$EXISTING_SECRET_CLEAN" && "$EXISTING_SECRET_CLEAN" != "null" && ! "$EXISTING_SECRET_CLEAN" =~ ^\* ]]; then
           if kubectl get secret "$EXISTING_SECRET_CLEAN" -n "$NAMESPACE" &>/dev/null; then
             log_pass "Fleets secret '${EXISTING_SECRET_CLEAN}' exists"
