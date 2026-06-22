@@ -5,6 +5,7 @@ On this page:
 * [Overview](#overview)
 * [Prerequisites](#prerequisites)
 * [Deploy the Local Agent](#deploy-the-local-agent)
+* [Backup and Restore](#backup-and-restore)
 * [Database Maintenance for the Local Agent](#database-maintenance-for-the-local-agent)
 * [Contributing](#contributing)
 * [License](#license)
@@ -336,29 +337,29 @@ Gather the deployment-specific configuration values that are listed in the follo
    * AWS CloudShell uses Bash by default.
    * In Azure Cloud Shell, select Bash as the default shell.
    
-2. Run the prerequisite script to install the required packages. Use the `setup-prerequisites-tools.sh` script to install them:
+2. Run the prerequisite script to install the required packages. Use the `maila-setup-prerequisites.sh` script to install them:
 
-      1. Download the `setup-prerequisites-tools.sh` script from this location:
-         [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/setup-prerequisites-tools.sh)
+      1. Download the `maila-setup-prerequisites.sh` script from this location:
+         [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-setup-prerequisites.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-setup-prerequisites.sh)
 
       2. If you are deploying to a cloud environment, upload the file to the cloud shell.
       
       3. Change the permissions to make the script executable:
 
          ```sh
-         chmod +x setup-prerequisites-tools.sh
+         chmod +x maila-setup-prerequisites.sh
          ```
 
       4. Run the script for the appropriate cloud provider:
 
          ```sh
-         ./setup-prerequisites-tools.sh --cloud <aws | azure>
+         ./maila-setup-prerequisites.sh --cloud <aws | azure>
          ```
 
          To view the usage options, run this command:
 
          ```sh
-         ./setup-prerequisites-tools.sh --help
+         ./maila-setup-prerequisites.sh --help
          ```
 
       5. Verify that the script completes successfully and that all the tools are installed with the correct versions.
@@ -620,7 +621,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
 
 > **Important:** Do not proceed with deployment until all errors are resolved.
 
-1. Download the prerequisite validation script (`validate-configuration.sh`) from this location:<br>
+1. Download the prerequisite validation script (`maila-validate-configuration.sh`) from this location:<br>
    <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
 
 2. Upload the script to your cloud console.
@@ -628,25 +629,25 @@ After the prerequisite steps are complete, run the validation tool to verify you
 3. In the terminal, change the permissions to make the script executable:
 
    ```sh
-   chmod +x validate-configuration.sh
+   chmod +x maila-validate-configuration.sh
    ```
 
 4. Run the prerequisite validation script. For example:
 
    ```sh
-   ./validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace>
+   ./maila-validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace>
    ```
 
    Here are the examples:
 
    **AWS**
    ```sh
-   ./validate-configuration.sh --cloud aws --values ./values-aws.yaml --namespace user-deployment-namespace
+   ./maila-validate-configuration.sh --cloud aws --values ./values-aws.yaml --namespace user-deployment-namespace
    ```
 
    **Azure**
    ```sh
-   ./validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace user-deployment-namespace
+   ./maila-validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace user-deployment-namespace
    ```
 
 
@@ -826,6 +827,82 @@ Make learning and using your project as easy as possible!
 Provide workarounds and solutions to known problems.
 Organize troubleshooting information using subtopics, as appropriate.
 -->
+
+## Backup and Restore
+
+### Backup the Local Agent
+
+Use the `maila-backup.sh` script to create a backup of your Local Agent configuration and data.
+
+1. Download the backup script (`maila-backup.sh`) from this location:<br>
+   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
+
+2. Change the permissions to make the script executable:
+
+   ```sh
+   chmod +x maila-backup.sh
+   ```
+
+3. Run the backup script:
+
+   ```sh
+   ./maila-backup.sh --release <your-release> --namespace <your-namespace> --output <your-dir> \
+      --storage-type <s3 | azure | gcs> --storage-path <storage-path>
+   ```
+
+   **Examples:**
+
+   * **S3 backup and upload** (after: `aws configure`):
+      ```sh
+      ./maila-backup.sh --release ci360-analytic-mai --namespace ci360-analytic-mai --output ./backups \
+         --storage-type s3 --storage-path s3://my-bucket/backups
+      ```
+
+   * **Azure backup and upload** (after: `az login`):
+      ```sh
+      ./maila-backup.sh --release ci360-analytic-mai --namespace ci360-analytic-mai --output ./backups \
+         --storage-type azure --storage-path mycontainer@mystorageaccount
+      ```
+
+   * **Google Cloud backup and upload** (after: `gcloud auth login`):
+      ```sh
+      ./maila-backup.sh --release ci360-analytic-mai --namespace ci360-analytic-mai --output ./backups \
+         --storage-type gcs --storage-path gs://my-bucket/backups
+      ```
+
+   **Notes:**
+   - `<your-release>`: The release name that was installed with the `helm upgrade` command (e.g., `ci360-analytic-mai`)
+   - `<your-namespace>`: The namespace where the release was installed (e.g., `ci360-analytic-mai`)
+   - `<your-dir>`: The directory where the backup will be locally stored  (e.g., `/mai/backups/`)
+
+   The backup file will be created in the directory specified with the `--output` flag with the format: `mai-backup-local-agent-YYYYMMDD-HHMMSS.tar.gz`.
+
+### Restore from Backup
+
+Use the `maila-restore.sh` script to restore your Local Agent from a backup.
+
+1. Download the restore script (`maila-restore.sh`) from this location:<br>
+   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
+
+2. Change the permissions to make the script executable:
+
+   ```sh
+   chmod +x maila-restore.sh
+   ```
+
+3. Run the restore script:
+
+   ```sh
+   ./maila-restore.sh --release <your-release> --namespace <your-namespace> --backup <backup-file.tar.gz>
+   ```
+
+   > **Note:** The `<backup-file.tar.gz>` should be the backup archive created by `maila-backup.sh` (format: `mai-backup-local-agent-YYYYMMDD-HHMMSS.tar.gz`)
+
+4. Verify the restoration is complete by checking pod status:
+
+   ```sh
+   kubectl get pods -n <your-namespace>
+   ```
 
 ## Database Maintenance for the Local Agent
 
