@@ -336,51 +336,15 @@ Gather the deployment-specific configuration values that are listed in the follo
 1. Make sure that you are using Bash as the shell environment.
    * AWS CloudShell uses Bash by default.
    * In Azure Cloud Shell, select Bash as the default shell.
-   
-2. Run the prerequisite script to install the required packages. Use the `maila-setup-prerequisites.sh` script to install them:
-
-      1.Download the prerequisite script (`maila-setup-prerequisites.sh`) from this location:<br>
-        <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
-        
-      2. If you are deploying to a cloud environment, upload the file to the cloud shell.
-      
-      3. Change the permissions to make the script executable:
-
-         ```sh
-         chmod +x maila-setup-prerequisites.sh
-         ```
-
-      4. Run the script for the appropriate cloud provider:
-
-         ```sh
-         ./maila-setup-prerequisites.sh --cloud <aws | azure>
-         ```
-
-         To view the usage options, run this command:
-
-         ```sh
-         ./maila-setup-prerequisites.sh --help
-         ```
-
-      5. Verify that the script completes successfully and that all the tools are installed with the correct versions.
-
-         | Tool | Minimum Version |
-         |------|-----------------|
-         | Helm | = 3.18.XX or 3.19.XX |
-         | kubectl | >= v1.27.0 |
-         | AWS CLI | >= 2.18.1 |
-         | Azure CLI | >= 2.83.0 |
-
-3. If the Helm deployment is not at the correct version:
-
-   1. Check the Helm version:
+  
+2. Check the Helm version:
       ```sh
       helm version --short
       ```
       
-      **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
-
-   2. If Helm is not installed, use the following commands to install the correct version
+**Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
+   
+3. If Helm is not installed, use the following commands to install the correct version
    
       ```sh
       curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
@@ -393,8 +357,7 @@ Gather the deployment-specific configuration values that are listed in the follo
       ```sh
       DESIRED_VERSION=v3.18.1 ./get_helm.sh
       ```
-
-   3. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
+4. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
    
       ```sh
       mkdir -p $HOME/.local/bin && \
@@ -416,7 +379,7 @@ Gather the deployment-specific configuration values that are listed in the follo
       helm version
       ```
 
-4. Connect to your Kubernetes cluster. First, sign in to your cloud account (AWS or the Azure CLI).
+6. Connect to your Kubernetes cluster. First, sign in to your cloud account (AWS or the Azure CLI).
    Then, complete the steps below based on your provider:
 
    * **AWS:** Complete these steps:
@@ -468,6 +431,42 @@ Gather the deployment-specific configuration values that are listed in the follo
            ```sh
            az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
            ```
+ 
+7. Following are supported tools with supported versions
+
+   | Tool | Minimum Version |
+   |------|-----------------|
+   | Helm | = 3.18.XX or 3.19.XX |
+   | kubectl | >= v1.27.0 |
+   | AWS CLI | >= 2.18.1 |
+   | Azure CLI | >= 2.83.0 |
+
+8. If any of the required tools are not installed or are below the minimum version, use the following steps to install them:
+   
+   1.Download the prerequisite script (`maila-setup-prerequisites.sh`) from this location:<br>
+        <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
+
+   2. If you are deploying to a cloud environment, upload the file to the cloud shell.
+   
+   3. Change the permissions to make the script executable:
+
+         ```sh
+         chmod +x maila-setup-prerequisites.sh
+         ```
+
+   4. Run the script for the appropriate cloud provider:
+
+         ```sh
+         ./maila-setup-prerequisites.sh --cloud <aws | azure>
+         ```
+
+         To view the usage options, run this command:
+
+         ```sh
+         ./maila-setup-prerequisites.sh --help
+         ```
+   5. Verify that the script completes successfully and that all the tools are installed with the correct versions.
+
 
 ### Configure the Kubernetes Environment
 
