@@ -7,6 +7,7 @@ _dagsStorageClassName: &dagsStorageClassName "azurefile-csi"
 _ecrJobImage: &ecrJobImage "python:3.9-alpine"
 _externalGatewayHost: &externalGatewayHost "<external gateway host>"
 _k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
+_airflowAuthSecretName: &airflowAuthSecretName "<secret created for deployment>"
 _storageAccountName: &storageAccountName "<input-storage-account-name-here>"
 _workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
 _agentpool: &agentpool "agentpool"
@@ -31,8 +32,8 @@ global:
     tenant: "not_set"
     # Direct host name
     directHost: ""
-  simpleAuthSecret: airflow-simple-auth-passwords
-  simpleAuthPassword: "admin"
+  airflowSimpleAuth:
+    secretName: *airflowAuthSecretName
 
 airflow:
   extraEnv: |
