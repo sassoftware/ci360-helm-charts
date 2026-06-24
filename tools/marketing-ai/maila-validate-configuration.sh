@@ -740,6 +740,60 @@ if [[ "$SKIP_K8S" == false ]]; then
         fi
       fi
 
+      # Check PostgreSQL HA secrets (required for Airflow metadata database)
+      log_info "Checking PostgreSQL HA secrets..."
+      
+      # postgres-credentials: Required for PostgreSQL cluster authentication
+      if kubectl get secret postgres-credentials -n "$NAMESPACE" &>/dev/null; then
+        # Verify required keys exist in the secret
+        POSTGRES_SECRET_KEYS=$(kubectl get secret postgres-credentials -n "$NAMESPACE" -o jsonpath='{.data}' 2>/dev/null)
+        
+        # Check for both required keys
+        if echo "$POSTGRES_SECRET_KEYS" | grep -q '"password"' && \
+           echo "$POSTGRES_SECRET_KEYS" | grep -q '"repmgr-password"'; then
+          log_pass "Secret 'postgres-credentials' exists with required keys (password, repmgr-password)"
+        else
+          # Determine which keys are missing
+          MISSING_KEYS=()
+          echo "$POSTGRES_SECRET_KEYS" | grep -q '"password"' || MISSING_KEYS+=("password")
+          echo "$POSTGRES_SECRET_KEYS" | grep -q '"repmgr-password"' || MISSING_KEYS+=("repmgr-password")
+          
+          log_fail "Secret 'postgres-credentials' exists but missing keys: $(IFS=', '; echo "${MISSING_KEYS[*]}")"
+          log_info "Recreate with: kubectl create secret generic postgres-credentials \\"
+          log_info "  --from-literal=password='<postgres-password>' \\"
+          log_info "  --from-literal=repmgr-password='<repmgr-password>' \\"
+          log_info "  -n ${NAMESPACE}"
+        fi
+      else
+        log_fail "Secret 'postgres-credentials' not found — create before deployment"
+        log_info "Required for PostgreSQL HA cluster (stores superuser password and repmgr password)"
+        log_info "Create with: kubectl create secret generic postgres-credentials \\"
+        log_info "  --from-literal=password='<postgres-password>' \\"
+        log_info "  --from-literal=repmgr-password='<repmgr-password>' \\"
+        log_info "  -n ${NAMESPACE}"
+      fi
+
+      # pgpool-credentials: Required for Pgpool-II connection pooler
+      if kubectl get secret pgpool-credentials -n "$NAMESPACE" &>/dev/null; then
+        # Verify required key exists
+        PGPOOL_SECRET_KEYS=$(kubectl get secret pgpool-credentials -n "$NAMESPACE" -o jsonpath='{.data}' 2>/dev/null)
+        
+        if echo "$PGPOOL_SECRET_KEYS" | grep -q '"admin-password"'; then
+          log_pass "Secret 'pgpool-credentials' exists with required key (admin-password)"
+        else
+          log_fail "Secret 'pgpool-credentials' exists but missing key: admin-password"
+          log_info "Recreate with: kubectl create secret generic pgpool-credentials \\"
+          log_info "  --from-literal=admin-password='<pgpool-admin-password>' \\"
+          log_info "  -n ${NAMESPACE}"
+        fi
+      else
+        log_fail "Secret 'pgpool-credentials' not found — create before deployment"
+        log_info "Required for Pgpool-II load balancer and connection pooling"
+        log_info "Create with: kubectl create secret generic pgpool-credentials \\"
+        log_info "  --from-literal=admin-password='<pgpool-admin-password>' \\"
+        log_info "  -n ${NAMESPACE}"
+      fi
+
       # Check fleets.existingSecret ONLY when mode is "gateway"
       if [[ "$FLEETS_MODE" == "gateway" ]]; then
         # Trim whitespace and quotes from EXISTING_SECRET
