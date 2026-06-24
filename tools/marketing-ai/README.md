@@ -552,6 +552,50 @@ Gather the deployment-specific configuration values that are listed in the follo
       --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
 
+5. Create the secrets needed for the PostgreSQL high-availability cluster:
+   
+   This secret is used by the PostgreSQL High Availability (HA) statefulset to manage database security and replication.
+
+   * **password**: This is the primary administrative password for the PostgreSQL superuser. It is required for the Airflow components to connect to and initialize the metadata database.
+   * **repmgr-password**: This is used by the Replication Manager (repmgr) utility. In an HA setup, repmgr handles the failover process and standby node registration. This password allows the nodes to communicate securely to manage cluster health.
+
+   Use a command like this example:
+
+   ```sh
+   kubectl create secret generic postgres-credentials \
+     --from-literal=password="<user-defined-postgres-password>" \
+     --from-literal=repmgr-password="<user-defined-repmgr-password>" \
+     -n <namespace> 
+   ```
+
+   This secret is used by the Pgpool-II deployment, which acts as a load balancer and connection pooler sitting in front of the PostgreSQL nodes.
+
+   * **admin-password**: This key is required for the Pgpool administration console and internal management. It allows Pgpool to perform health checks and manage the distribution of read/write queries across the database cluster.
+
+   Use a command like this example:
+   
+   ```sh
+   kubectl create secret generic pgpool-credentials \
+     --from-literal=admin-password="<user-defined-pgpool-admin-password>" \
+     -n <namespace>
+   ```
+
+6. Create the secret needed for Airflow:
+
+   This secret defines the primary credentials used by the Airflow UI and API.
+
+   * **username**: The admin username for logging into the Airflow web interface.
+   * **password**: The password for the corresponding Airflow admin account.
+
+   Use a command like this example:
+
+   ```sh
+   kubectl create secret generic airflow-auth-credentials \
+     --from-literal=username="<user-defined-airflow-username>" \
+     --from-literal=password="<user-defined-airflow-password>" \
+     -n <namespace>
+   ```
+
 ### Install Service monitor CRDs
 
 1. Check if CRDs exists:
