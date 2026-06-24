@@ -339,9 +339,9 @@ Gather the deployment-specific configuration values that are listed in the follo
    
 2. Run the prerequisite script to install the required packages. Use the `maila-setup-prerequisites.sh` script to install them:
 
-      1. Download the `maila-setup-prerequisites.sh` script from this location:
-         [https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-setup-prerequisites.sh](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/maila-setup-prerequisites.sh)
-
+      1.Download the prerequisite script (`maila-setup-prerequisites.sh`) from this location:<br>
+        <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
+        
       2. If you are deploying to a cloud environment, upload the file to the cloud shell.
       
       3. Change the permissions to make the script executable:
