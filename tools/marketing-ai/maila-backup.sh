@@ -239,7 +239,7 @@ EOF
   log_info "Streaming PVC contents via tar through kubectl exec..."
   
   kubectl exec "${temp_pod}" -n "$NAMESPACE" -c backup -- \
-    sh -c "tar -C '${mount_path}' -cf - ." | tar -xf - -C "$temp_copy_dir"
+    sh -c "tar -C '${mount_path}' -cf - --exclude='__pycache__' --exclude='*.pyc' --exclude='.pytest_cache' --exclude='.egg-info' ." | tar -xf - -C "$temp_copy_dir"
   
   # Move contents to final location
   if [[ -d "$temp_copy_dir" && $(ls -A "$temp_copy_dir" 2>/dev/null | wc -l) -gt 0 ]]; then

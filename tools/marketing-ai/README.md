@@ -3,6 +3,8 @@
 On this page:
 
 * [Overview](#overview)
+* [Set Up the Helm Repository](#set-up-the-helm-repository)
+* [Download the Release Archive](#download-the-release-archive)
 * [Prerequisites](#prerequisites)
 * [Deploy the Local Agent](#deploy-the-local-agent)
 * [Backup and Restore](#backup-and-restore)
@@ -34,6 +36,132 @@ If applicable to your project, list new features you want users to be aware of.
 This section might supplement the Changelog file from the repository and only highlight important changes.
 -->
 
+## Set Up the Helm Repository
+   
+ 1. Make sure that you are using Bash as the shell environment.
+   * AWS CloudShell uses Bash by default.
+   * In Azure Cloud Shell, select Bash as the default shell.
+  
+2. Check the Helm version:
+      ```sh
+      helm version --short
+      ```
+      
+   **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18. or v3.19. (for example, v3.18.1+gXXXXXXX).
+   
+3. If Helm is not installed, use the following commands to install the correct version
+   
+      ```sh
+      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      ```
+      
+      ```sh
+      chmod 700 get_helm.sh
+      ```
+      
+      ```sh
+      DESIRED_VERSION=v3.18.1 ./get_helm.sh
+      ```
+4. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
+   
+      ```sh
+      mkdir -p $HOME/.local/bin && \
+      export PATH="$HOME/.local/bin:$PATH" && \
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
+      wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
+      tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
+      mv linux-amd64/helm $HOME/.local/bin/helm && \
+      rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
+      ```
+   
+      ```sh
+      #Clear terminal cache
+      hash -r
+      ```
+   
+      ```sh
+      #Check helm version
+      helm version
+      ```
+
+ 5. Get the public helm repo and check the available versions:
+
+    ```sh
+    # Add the repo
+    helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
+    ```
+
+    ```sh
+    # Update the repo
+    helm repo update
+    ```
+
+    ```sh
+    # Verify that the 'sas-marketing-ai' chart is available
+    helm search repo ci360-helm-charts/sas-marketing-ai
+    ```
+    
+    **Important**: Make note of the chart version for later steps in the deployment.
+
+    Optionally, you can inspect the chart contents by running these commands:
+
+    ```sh
+    # Show the README for a specific chart version
+    helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+    ```
+
+    ```sh
+    # Show the default values for a specific chart version
+    helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+    ```
+
+    ```sh  
+    # Show the chart metadata for a specific chart version
+    helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
+    ```
+
+6. Use the appropriate `values-<cloud provider>.yaml` file for your cloud provider:
+
+   The `values-<cloud provider>.yaml` files are included in the release archive you extracted earlier (see [Download the Release Archive](#download-the-release-archive)). Navigate to the `tools/marketing-ai` directory and find:
+   
+   * **AWS:** `values-aws.yaml`
+   * **Azure:** `values-azure.yaml`
+
+7. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
+   in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
+
+8. Upload the modified file through the cloud console.
+  
+## Download the Release Archive
+
+The deployment scripts are provided in a release archive that corresponds to your deployment chart version. Download and extract this archive once, then use it for all subsequent steps.
+
+1. Download and extract the release archive:
+
+   ```sh
+   curl -L -o ci360-helm-charts-tools-marketing-ai-<CHART_VERSION>.tar.gz \
+     https://github.com/sassoftware/ci360-helm-charts/archive/refs/tags/tools-marketing-ai-<CHART_VERSION>.tar.gz
+   ```
+
+   ```sh
+   tar -xzf ci360-helm-charts-tools-marketing-ai-<CHART_VERSION>.tar.gz
+   ```
+
+   > **Note:** Replace `<CHART_VERSION>` with the version of the chart you plan to deploy (e.g., `0.39.7`). For example:
+   > ```sh
+   > curl -L -o ci360-helm-charts-tools-marketing-ai-0.39.7.tar.gz \
+   >   https://github.com/sassoftware/ci360-helm-charts/archive/refs/tags/tools-marketing-ai-0.39.7.tar.gz
+   > tar -xzf ci360-helm-charts-tools-marketing-ai-0.39.7.tar.gz
+   > ```
+
+2. Navigate to the tools/marketing-ai directory:
+
+   ```sh
+   cd ci360-helm-charts-tools-marketing-ai-<CHART_VERSION>/tools/marketing-ai
+   ```
+
+   All deployment scripts in the following steps are run from this directory.
+
 ## Prerequisites
 
 Before you begin to set up the local agent, make sure that you have completed these prerequisites.
@@ -55,11 +183,10 @@ Deploy and configure a Kubernetes cluster. The cluster must be configured to con
 cloud-service provider. For more information, see
 <a href="https://kubernetes.io/docs/setup/" target="_blank">https://kubernetes.io/docs/setup/</a>.
 
-For detailed cluster requirements, node configuration, IAM permissions, and storage class
-prerequisites specific to your cloud provider, see:
+For detailed cluster requirements, node configuration, IAM permissions, and storage class prerequisites specific to your cloud provider, see the documentation files in the release archive you downloaded (see [Download the Release Archive](#download-the-release-archive)):
 
-- <a href="./README-aws-infrastructure.md" target="_blank">AWS Infrastructure Requirements</a>
-- <a href="./README-azure-infrastructure.md" target="_blank">Azure Infrastructure Requirements</a>
+- `README-aws-infrastructure.md`
+- `README-azure-infrastructure.md`
 
 ### Collect the Required Deployment Information
 Gather the deployment-specific configuration values that are listed in the following table for your cloud provider. Some values are obtained from your cloud environment, while others are provided by SAS. You will use these values later to populate the local agent YAML configuration file.
@@ -115,6 +242,25 @@ Gather the deployment-specific configuration values that are listed in the follo
   <td>
   <p>Name of the Azure Storage
   Account that is used by the deployment.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_storageAccountResourceId</p>
+  </td>
+  <td>
+  <p>Azure only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>Azure Storage Account resource ID</p>
+  </td>
+  <td>
+  <p>Full Azure resource ID of the storage
+  account. This value is used by lifecycle policy management to resolve the
+  subscription ID, resource group, and storage account name.</p>
   </td>
  </tr>
  <tr>
@@ -337,49 +483,7 @@ Gather the deployment-specific configuration values that are listed in the follo
    * AWS CloudShell uses Bash by default.
    * In Azure Cloud Shell, select Bash as the default shell.
   
-2. Check the Helm version:
-      ```sh
-      helm version --short
-      ```
-      
-**Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18.1 (for example, v3.18.1+gXXXXXXX).
-   
-3. If Helm is not installed, use the following commands to install the correct version
-   
-      ```sh
-      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-      ```
-      
-      ```sh
-      chmod 700 get_helm.sh
-      ```
-      
-      ```sh
-      DESIRED_VERSION=v3.18.1 ./get_helm.sh
-      ```
-4. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
-   
-      ```sh
-      mkdir -p $HOME/.local/bin && \
-      export PATH="$HOME/.local/bin:$PATH" && \
-      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
-      wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
-      tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
-      mv linux-amd64/helm $HOME/.local/bin/helm && \
-      rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
-      ```
-   
-      ```sh
-      #Clear terminal cache
-      hash -r
-      ```
-   
-      ```sh
-      #Check helm version
-      helm version
-      ```
-
-6. Connect to your Kubernetes cluster. First, sign in to your cloud account (AWS or the Azure CLI).
+2. Connect to your Kubernetes cluster. First, sign in to your cloud account (AWS or the Azure CLI).
    Then, complete the steps below based on your provider:
 
    * **AWS:** Complete these steps:
@@ -432,7 +536,7 @@ Gather the deployment-specific configuration values that are listed in the follo
            az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
            ```
  
-7. Following are supported tools with supported versions
+6. Supported tools (minimum versions):
 
    | Tool | Minimum Version |
    |------|-----------------|
@@ -441,22 +545,12 @@ Gather the deployment-specific configuration values that are listed in the follo
    | AWS CLI | >= 2.18.1 |
    | Azure CLI | >= 2.83.0 |
 
-8. If any of the required tools are not installed or are below the minimum version, use the following steps to install them:
+7. If any of the required tools are not installed or are below the minimum version, use the following steps to install them:
    
-   1.Download the prerequisite script (`maila-setup-prerequisites.sh`) from this location:<br>
-        <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
-
-   2. If you are deploying to a cloud environment, upload the file to the cloud shell.
-   
-   3. Change the permissions to make the script executable:
+   1. Run the prerequisite script from the release archive you extracted (see [Download the Release Archive](#download-the-release-archive)):
 
          ```sh
          chmod +x maila-setup-prerequisites.sh
-         ```
-
-   4. Run the script for the appropriate cloud provider:
-
-         ```sh
          ./maila-setup-prerequisites.sh --cloud <aws | azure>
          ```
 
@@ -465,7 +559,8 @@ Gather the deployment-specific configuration values that are listed in the follo
          ```sh
          ./maila-setup-prerequisites.sh --help
          ```
-   5. Verify that the script completes successfully and that all the tools are installed with the correct versions.
+
+   2. Verify that the script completes successfully and that all the tools are installed with the correct versions.
 
 
 ### Configure the Kubernetes Environment
@@ -607,77 +702,16 @@ Gather the deployment-specific configuration values that are listed in the follo
    kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
    ```
 
-### Set Up the Helm Repository
-   
- 1. Get the public helm repo and check the available versions:
-
-    ```sh
-    # Add the repo
-    helm repo add ci360-helm-charts https://sassoftware.github.io/ci360-helm-charts/packages
-    ```
-
-    ```sh
-    # Update the repo
-    helm repo update
-    ```
-
-    ```sh
-    # Verify that the 'sas-marketing-ai' chart is available
-    helm search repo ci360-helm-charts/sas-marketing-ai
-    ```
-    
-    **Important**: Make note of the chart version for later steps in the deployment.
-
-    Optionally, you can inspect the chart contents by running these commands:
-
-    ```sh
-    # Show the README for a specific chart version
-    helm show readme ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-    ```
-
-    ```sh
-    # Show the default values for a specific chart version
-    helm show values ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-    ```
-
-    ```sh  
-    # Show the chart metadata for a specific chart version
-    helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
-    ```
-
-2. Download the appropriate `values-<cloud provider>.yaml` file for your cloud provider from the following location:<br>
-   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
-
-   For example:
-   * **AWS:** `values-aws.yaml`
-   * **Azure:** `values-azure.yaml`
-
-3. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
-   in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
-
-4. Upload the modified file through the cloud console.
-  
-
 ### Validate Prerequisite Configuration
 
 After the prerequisite steps are complete, run the validation tool to verify your configuration.
 
 > **Important:** Do not proceed with deployment until all errors are resolved.
 
-1. Download the prerequisite validation script (`maila-validate-configuration.sh`) from this location:<br>
-   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
-
-2. Upload the script to your cloud console.
-
-3. In the terminal, change the permissions to make the script executable:
+1. Run the prerequisite validation script from the release archive you extracted (see [Download the Release Archive](#download-the-release-archive)):
 
    ```sh
    chmod +x maila-validate-configuration.sh
-   ```
-
-4. Run the prerequisite validation script. For example:
-
-   ```sh
    ./maila-validate-configuration.sh --cloud <aws | azure> --values ./values-<aws | azure>.yaml --namespace <namespace>
    ```
 
@@ -873,22 +907,44 @@ Organize troubleshooting information using subtopics, as appropriate.
 
 ## Backup and Restore
 
-### Backup the Local Agent
+### Overview
+
+The `local-agent` deployment includes critical data that must be preserved for operational continuity. This section describes what gets backed up, how to create backups, and how to restore from them.
+
+#### What Gets Backed Up
+
+A complete backup includes the following artifacts:
+
+| Artifact | Description | Use Case | Part of Restore Script? |
+|----------|-------------|----------|----------------|
+| **Airflow Metadata Database (PostgreSQL)** | Complete database dump including all Airflow metadata, task history, logs, connections, variables, and pools | Migration, disaster recovery, environment cloning | Yes |
+| **DAGs (Directed Acyclic Graphs)** | All workflow definitions stored in the DAGs PersistentVolumeClaim | Code preservation, workflow recovery | Yes |
+| **Airflow Fernet Key** | Encryption key for Airflow secrets and sensitive connection data | Decryption of encrypted fields during restore | No. Applied at Helm installation time with --set flag |
+| **Airflow Variables, Connections & Pools** | Airflow configuration objects extracted from the metadata database | Environment-specific settings, external system integrations | Yes |
+| **Helm Release Values** | Current Helm deployment configuration | Configuration tracking, reproducible deployments | No. Applied at Helm installation time with -f flag |
+
+### Backup Process
+
+#### Prerequisites
+
+Before running backup, ensure:
+- `kubectl` is configured and authenticated to your cluster
+- `helm` is installed and available in your PATH
+- `tar` is available for archiving
+- You have read access to the relevant Kubernetes namespace
+- For cloud storage: appropriate CLI tools and authentication
+  - **AWS S3**: `aws` CLI, run `aws configure`
+  - **Azure Blob**: `az` CLI, run `az login`
+  - **Google Cloud**: `gcloud` CLI, run `gcloud auth login`
+
+#### Performing a Backup of Local Agent
 
 Use the `maila-backup.sh` script to create a backup of your Local Agent configuration and data.
 
-1. Download the backup script (`maila-backup.sh`) from this location:<br>
-   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
-
-2. Change the permissions to make the script executable:
+1. Run the backup script from the release archive you extracted (see [Download the Release Archive](#download-the-release-archive)):
 
    ```sh
    chmod +x maila-backup.sh
-   ```
-
-3. Run the backup script:
-
-   ```sh
    ./maila-backup.sh --release <your-release> --namespace <your-namespace> --output <your-dir> \
       --storage-type <s3 | azure | gcs> --storage-path <storage-path>
    ```
@@ -920,32 +976,162 @@ Use the `maila-backup.sh` script to create a backup of your Local Agent configur
 
    The backup file will be created in the directory specified with the `--output` flag with the format: `mai-backup-local-agent-YYYYMMDD-HHMMSS.tar.gz`.
 
+   **Additional backup options:**
+   ```bash
+   --minimal         # Backup only DAGs, database, Fernet key, and Helm values (skip Airflow Variables/Connections/Pools exports)
+   --dry-run         # Preview backup steps without executing
+   --no-color        # Disable colored output (useful for CI/CD pipelines)
+   ```
+
+#### Backup Output
+
+A successful backup creates a `.tar.gz` archive containing:
+```
+mai-backup-local-agent-20260601-173203.tar.gz
+└── mai-backup-local-agent-20260601-173203/
+     ├── airflow-db.sql                 # PostgreSQL dump of entire Airflow metadata database
+     ├── fernet-key.txt                 # Fernet key (SENSITIVE - keep secure)
+     ├── dags/                          # Complete DAGs folder contents
+     ├── helm-values.yaml               # Current Helm release values snapshot
+     ├── airflow-variables.json         # (Optional; skipped with --minimal)
+     ├── airflow-connections.json       # (Optional; skipped with --minimal)
+     └── airflow-pools.json             # (Optional; skipped with --minimal)
+```
+
+**Backup file naming:** `mai-backup-<release>-<timestamp>.tar.gz`
+
+**Retention:**
+- Store backups in multiple locations (local + cloud)
+- Implement backup rotation policy (e.g., keep 7 daily, 4 weekly, 12 monthly)
+- Test restore procedures regularly
+#### Expected Timing
+
+**Backup Duration:**
+- **New/light namespace** (minimal DAGs, little history): ~5 minutes, ~50 KB archive
+- **Production/master** (heavy DAGs, extensive task history): ~25-30 minutes, 100+ MB archive
+- **Network speed to cloud storage** significantly affects upload time for large backups
+
 ### Restore from Backup
+
+#### Prerequisites for Restore
+
+1. **Helm release must be deployed first** — Restore only restores data, not infrastructure
+   
+   > **Important:** When deploying the Helm release for restore, you should apply the **Fernet key** from the backup to ensure encrypted connections and variables can be properly decrypted. This must be done at installation time.
+
+   ```bash
+   # Extract the backup archive (it contains a top-level directory)
+    tar -xzf mai-backup-local-agent-<timestamp>.tar.gz
+    FERNET_KEY=$(cat mai-backup-local-agent-<timestamp>/fernet-key.txt)
+   
+   # Deploy the Helm release with the backed-up Fernet key
+   helm upgrade --install local-agent ./local-agent \
+     --namespace airflow \
+     --create-namespace \
+     --values values.yaml \
+     --set fernetKey="$FERNET_KEY" \
+     --timeout 20m
+   ```
+
+   **Alternative: Use backed-up Helm values directly**
+   
+   If you have the `helm-values.yaml` from your backup, deploy with it to preserve all configuration:
+   
+   ```bash
+   # Deploy with both values files to restore full configuration
+   helm upgrade --install local-agent ./local-agent \
+     --namespace airflow \
+     --create-namespace \
+     --values values.yaml \
+     -f mai-backup-local-agent-<timestamp>/helm-values.yaml \
+     --timeout 20m
+   ```
+
+2. **Backup archive must be accessible** — Either local copy or download from cloud storage
+
+3. **Required tools:**
+   - `kubectl` configured for target cluster and namespace
+   - `tar` command available
+   - Database must be in healthy state (deployment should be running)
+   - Extracted backup archive containing `fernet-key.txt` and optionally `helm-values.yaml`
+
+#### Performing a Restore
 
 Use the `maila-restore.sh` script to restore your Local Agent from a backup.
 
-1. Download the restore script (`maila-restore.sh`) from this location:<br>
-   <a href="https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai" target="_blank">https://github.com/sassoftware/ci360-helm-charts/tree/main/tools/marketing-ai</a>
+**Complete restore workflow with Fernet key:**
 
-2. Change the permissions to make the script executable:
+1. Extract the backup archive and get the Fernet key:
+   ```sh
+   tar -xzf mai-backup-local-agent-<timestamp>.tar.gz
+   FERNET_KEY=$(cat mai-backup-local-agent-<timestamp>/fernet-key.txt)
+   ```
+
+2. Deploy the Helm release with Fernet key (Step 1 of restore):
+   ```sh
+   helm upgrade --install local-agent ./local-agent \
+     --namespace airflow \
+     --create-namespace \
+     --values values.yaml \
+     --set fernetKey="$FERNET_KEY" \
+     --timeout 20m
+   ```
+
+3. Wait for deployment to be ready:
+   ```sh
+   kubectl -n airflow wait --for=condition=ready pod --selector='!job-name' --timeout=600s
+   ```
+
+4. Run the restore script (Step 2 of restore):
+   ```sh
+   chmod +x maila-restore.sh
+   ./maila-restore.sh --release local-agent --namespace airflow --backup ./mai-backup-local-agent-<timestamp>.tar.gz
+   ```
+
+5. Verify the restoration is complete by checking pod status:
+   ```sh
+   kubectl get pods -n airflow
+   ```
+
+**Restore script options:**
+
+1. Run the restore script from the release archive you extracted (see [Download the Release Archive](#download-the-release-archive)):
 
    ```sh
    chmod +x maila-restore.sh
-   ```
-
-3. Run the restore script:
-
-   ```sh
    ./maila-restore.sh --release <your-release> --namespace <your-namespace> --backup <backup-file.tar.gz>
    ```
 
    > **Note:** The `<backup-file.tar.gz>` should be the backup archive created by `maila-backup.sh` (format: `mai-backup-local-agent-YYYYMMDD-HHMMSS.tar.gz`)
 
-4. Verify the restoration is complete by checking pod status:
+2. Verify the restoration is complete by checking pod status:
 
    ```sh
    kubectl get pods -n <your-namespace>
    ```
+
+#### Important Restore Considerations
+
+**Version Compatibility:**
+- Restore can only be done to the **same or newer Airflow version** as the backup source
+- Database schema migration happens automatically during restore, but only forward in version
+- If you need to restore to an older version, consider backing up the Airflow objects (Variables, Connections, Pools) separately
+
+**Fernet Key Mismatch:**
+- If the Fernet key doesn't match during restore, encrypted connections and variables will fail to decrypt
+- Always extract and apply the Fernet key from the backup when deploying the Helm release
+- This is critical for restoring sensitive data like database passwords and API tokens
+
+**Variables Created at Install Time:**
+- Some variables are created during Helm installation (e.g., `partition_config`)
+- These will be **overwritten** by the database restore if they exist in the backup
+- To preserve install-time defaults while restoring specific DAGs only, use `--skip-db` flag
+
+#### Expected Timing
+
+- **Minimal backup/restore** (DAGs + DB, <1GB): 2-5 minutes
+- **Full backup/restore** (with logs): 10-30+ minutes (depends on log size)
+- **Network speed to cloud storage** affects upload/download time
 
 ## Database Maintenance for the Local Agent
 
