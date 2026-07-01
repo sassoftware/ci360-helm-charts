@@ -5,7 +5,9 @@ Review the information in the following sections to set up your Azure Kubernetes
 1. [AKS Cluster Requirements](#1-aks-cluster-requirements)
 2. [Configure Container Storage](#2-configure-container-storage)
 3. [Identity and Access Control (Workload Identity)](#3-identity-and-access-control-workload-identity)
-4. [Additional Components](#4-additional-components)
+4. [Blob Lifecycle Cleanup Configuration](#4-blob-lifecycle-cleanup-configuration)
+5. [Additional Components](#5-additional-components)
+6. [Monitoring Agent](#6-monitoring-agent)
 
 ## 1. AKS Cluster Requirements
 
@@ -76,7 +78,22 @@ Follow these steps:
 4. Link each federated credential to the corresponding Kubernetes service account.
 5. Ensure pods use those service accounts to inherit access to Azure resources.
 
-## 4. Additional Components
+## 4. Blob Lifecycle Cleanup Configuration
+
+MAI can apply Azure Blob lifecycle policies to eventually remove Recipe and Project artifacts
+after the Recipe or Project is deleted.
+
+### Azure Role Assignment
+
+Azure lifecycle policies are storage-account-level management-plane resources. Assign the
+managed identity used by MAI to the specific storage account for this deployment. Current
+validation uses the built-in `Storage Account Contributor` role at storage account scope.
+
+This role is introduced so `maiorchestra` can read and update the storage account lifecycle
+policy that eventually deletes Recipe/Project artifacts. Blob container or blob prefix scope
+is not enough for lifecycle policy management.
+
+## 5. Additional Components
 
 ### Networking — NAT Gateway
 
@@ -108,7 +125,7 @@ Check that the KEDA operator and metrics server pods are running.
 kubectl get pods -n keda
 ```
 
-## 5. Monitoring Agent 
+## 6. Monitoring Agent
 The cluster must have a monitoring and observability solution enabled. Existing platforms such as Datadog, Dynatrace, New Relic, or an equivalent enterprise monitoring solution are acceptable. If no monitoring solution is currently deployed, Azure-native monitoring must be enabled using the Azure-managed Azure Monitor Agent and Managed Prometheus to provide the required observability, metrics, and logging capabilities before implementation.
 
 
