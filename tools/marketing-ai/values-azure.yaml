@@ -9,8 +9,8 @@ _externalGatewayHost: &externalGatewayHost "<external gateway host>"
 _k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
 _airflowAuthSecretName: &airflowAuthSecretName "<secret created for deployment>"
 _storageAccountName: &storageAccountName "<input-storage-account-name-here>"
-_workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
 _storageAccountResourceId: &storageAccountResourceId "<input-storage-account-resource-id>"
+_workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
 _agentpool: &agentpool "agentpool"
 _remoteBaseLogFolder: &remoteBaseLogFolder "wasb://airflow-logs@<blob bucket name>.blob.core.windows.net/logs"
 
@@ -151,9 +151,8 @@ ci360-satellite:
       prometheus.io/scrape: "true"
       prometheus.io/port: "8080"
       prometheus.io/path: "/maiproxy/metrics"
-    environment:
-      MAI_INTERNAL_STORAGE_PREFIX: azure
-      MAI_INTERNAL_STORAGE_BUCKET: mai  # use from global values, or use anchors.
+      # NOTE: MAI_INTERNAL_STORAGE_PREFIX/BUCKET are set from global.storagePrefix/storageBucket
+      # in the deployment template. Do not duplicate them in environment.
 
   maiorchestra:
     nodeSelector:
