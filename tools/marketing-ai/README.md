@@ -549,16 +549,16 @@ Gather the deployment-specific configuration values that are listed in the follo
    
    1. Run the prerequisite script from the release archive you extracted (see [Download the Release Archive](#download-the-release-archive)):
 
-         ```sh
-         chmod +x maila-setup-prerequisites.sh
-         ./maila-setup-prerequisites.sh --cloud <aws | azure>
-         ```
+      ```sh
+      chmod +x maila-setup-prerequisites.sh
+      ./maila-setup-prerequisites.sh --cloud <aws | azure>
+      ```
 
-         To view the usage options, run this command:
+      To view the usage options, run this command:
 
-         ```sh
-         ./maila-setup-prerequisites.sh --help
-         ```
+      ```sh
+      ./maila-setup-prerequisites.sh --help
+      ```
 
    2. Verify that the script completes successfully and that all the tools are installed with the correct versions.
 
