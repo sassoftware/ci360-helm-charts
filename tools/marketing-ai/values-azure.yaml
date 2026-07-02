@@ -15,7 +15,6 @@ _agentpool: &agentpool "agentpool"
 _remoteBaseLogFolder: &remoteBaseLogFolder "wasb://airflow-logs@<blob bucket name>.blob.core.windows.net/logs"
 
 # =========================
-# =========================
 
 global:
   ExternalGatewayHost: *externalGatewayHost
