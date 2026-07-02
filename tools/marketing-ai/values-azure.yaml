@@ -10,10 +10,13 @@ _k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
 _airflowAuthSecretName: &airflowAuthSecretName "<secret created for deployment>"
 _storageAccountName: &storageAccountName "<input-storage-account-name-here>"
 _workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
+_storageAccountResourceId: &storageAccountResourceId "<input-storage-account-resource-id>"
 _agentpool: &agentpool "agentpool"
 _remoteBaseLogFolder: &remoteBaseLogFolder "wasb://airflow-logs@<blob bucket name>.blob.core.windows.net/logs"
 
 # =========================
+# =========================
+
 global:
   ExternalGatewayHost: *externalGatewayHost
   workloadIdentityClientId: *workloadIdentityClientId
@@ -22,6 +25,7 @@ global:
   ecr_job_image: *ecrJobImage
   storageBucket: "mai"
   storageAccountName: *storageAccountName
+  storageAccountResourceId: *storageAccountResourceId
   # Fleets connection settings - automatically passed to all subcharts
   fleets:
     # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
@@ -51,6 +55,8 @@ airflow:
       value: '20'
     - name: AZURE_STORAGE_ACCOUNT_NAME
       value: "{{ .Values.global.storageAccountName }}"
+    - name: AZURE_STORAGE_ACCOUNT_RESOURCE_ID
+      value: "{{ .Values.global.storageAccountResourceId }}"
     - name: AZURE_CLIENT_ID
       value: "{{ .Values.global.workloadIdentityClientId }}"
     - name: AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER
@@ -66,6 +72,17 @@ airflow:
     # and Azure SDK transport, emitting endpoint URLs and connection details at DEBUG level).
     - name: PYTHONWARNINGS
       value: "ignore"
+
+  # Built-in Airflow chart support: this is rendered into airflow_local_settings.py
+  # and loaded after Airflow logging initialization.
+  airflowLocalSettings: |
+    import logging
+    for _logger in [
+        "azure.core.pipeline.policies.http_logging_policy",
+        "azure.identity._internal.get_token_mixin",
+        "azure.storage",
+    ]:
+        logging.getLogger(_logger).setLevel(logging.WARNING)
 
   config:
     logging:
@@ -120,6 +137,7 @@ postgresql-ha:
 ci360-satellite:
   podLabels:
     azure.workload.identity/use: "true"
+
   dags:
     persistence:
       storageClassName: *dagsStorageClassName
@@ -176,6 +194,8 @@ fleets:
   password: ""
   key: ""  # deprecated: use 'password' instead
 
+# AMA managed Prometheus scrape config
 amaPrometheus:
   enabled: false # Set to true to enable the AMA-managed Prometheus scrape configuration
   scrapeInterval: "30s"
+
