@@ -2,8 +2,31 @@ apiVersion: v1
 entries:
   sas-marketing-ai:
   - apiVersion: v2
+    appVersion: 0.39.9
+    created: "2026-07-02T13:24:28.565831342Z"
+    dependencies:
+    - name: airflow
+      repository: file://../charts/airflow
+      version: 0.0.43
+    - name: postgresql-ha
+      repository: file://../charts/postgresql-ha
+      version: 0.0.43
+    - name: redis
+      repository: file://../charts/redis
+      version: 23.2.12
+    - name: ci360-satellite
+      repository: file://../charts/service
+      version: 0.0.43
+    description: A Helm chart for native components of SAS CI360 Marketing AI
+    digest: 95ee8c4cc09b0d3aa5e98ab360039dcefcb89a60b85fbd2454f27932996d7eb7
+    name: sas-marketing-ai
+    type: application
+    urls:
+    - marketing-ai/sas-marketing-ai-0.39.9.tgz
+    version: 0.39.9
+  - apiVersion: v2
     appVersion: 0.39.8
-    created: "2026-07-02T06:35:14.653155716Z"
+    created: "2026-07-02T13:24:28.541693462Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -26,7 +49,7 @@ entries:
     version: 0.39.8
   - apiVersion: v2
     appVersion: 0.39.7
-    created: "2026-07-02T06:35:14.625738076Z"
+    created: "2026-07-02T13:24:28.514019758Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -49,7 +72,7 @@ entries:
     version: 0.39.7
   - apiVersion: v2
     appVersion: 0.39.6
-    created: "2026-07-02T06:35:14.600082635Z"
+    created: "2026-07-02T13:24:28.490929391Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -72,7 +95,7 @@ entries:
     version: 0.39.6
   - apiVersion: v2
     appVersion: 0.39.5
-    created: "2026-07-02T06:35:14.57427989Z"
+    created: "2026-07-02T13:24:28.466454994Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -95,7 +118,7 @@ entries:
     version: 0.39.5
   - apiVersion: v2
     appVersion: 0.39.4
-    created: "2026-07-02T06:35:14.548805254Z"
+    created: "2026-07-02T13:24:28.439708748Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -118,7 +141,7 @@ entries:
     version: 0.39.4
   - apiVersion: v2
     appVersion: 0.39.3
-    created: "2026-07-02T06:35:14.522292516Z"
+    created: "2026-07-02T13:24:28.411553669Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -141,7 +164,7 @@ entries:
     version: 0.39.3
   - apiVersion: v2
     appVersion: 0.39.2
-    created: "2026-07-02T06:35:14.476697028Z"
+    created: "2026-07-02T13:24:28.386277671Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -164,7 +187,7 @@ entries:
     version: 0.39.2
   - apiVersion: v2
     appVersion: 0.39.1
-    created: "2026-07-02T06:35:14.428157765Z"
+    created: "2026-07-02T13:24:28.361306957Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -187,7 +210,7 @@ entries:
     version: 0.39.1
   - apiVersion: v2
     appVersion: 0.39.0
-    created: "2026-07-02T06:35:14.382282992Z"
+    created: "2026-07-02T13:24:28.335819914Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -210,7 +233,7 @@ entries:
     version: 0.39.0
   - apiVersion: v2
     appVersion: 0.36.0
-    created: "2026-07-02T06:35:14.337034436Z"
+    created: "2026-07-02T13:24:28.310232749Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -233,7 +256,7 @@ entries:
     version: 0.36.0
   - apiVersion: v2
     appVersion: 0.35.2
-    created: "2026-07-02T06:35:14.295201608Z"
+    created: "2026-07-02T13:24:28.28402929Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -256,7 +279,7 @@ entries:
     version: 0.35.2
   - apiVersion: v2
     appVersion: 0.34.2
-    created: "2026-07-02T06:35:14.271882277Z"
+    created: "2026-07-02T13:24:28.258241896Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -279,7 +302,7 @@ entries:
     version: 0.34.2
   - apiVersion: v2
     appVersion: 0.34.1
-    created: "2026-07-02T06:35:14.247949898Z"
+    created: "2026-07-02T13:24:28.233310974Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -302,7 +325,7 @@ entries:
     version: 0.34.1
   - apiVersion: v2
     appVersion: 0.34.0
-    created: "2026-07-02T06:35:14.223948857Z"
+    created: "2026-07-02T13:24:28.206237351Z"
     dependencies:
     - name: airflow
       repository: file://../charts/airflow
@@ -396,4 +419,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.44.0.tgz
     version: 0.44.0
-generated: "2026-07-02T12:45:38.312167113Z"
+generated: "2026-07-02T13:24:28.182430205Z"
