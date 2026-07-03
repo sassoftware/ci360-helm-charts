@@ -348,8 +348,26 @@ entries:
     version: 0.34.0
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.48.0
+    created: "2026-07-03T06:39:44.730602479Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.48.0
+    - condition: postgresql-ha.enabled
+      name: postgresql-ha
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 16.3.2
+    description: A Helm chart for native components of CI360 Marketing Decisioning
+    digest: 4f7a8466c6f729bda6f779a291d4f8873cef6a268e83415ab58d369e3ef6a628
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.48.0.tgz
+    version: 0.48.0
+  - apiVersion: v2
     appVersion: 0.47.0
-    created: "2026-07-02T12:45:38.345079515Z"
+    created: "2026-07-03T06:39:44.723102355Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -367,7 +385,7 @@ entries:
     version: 0.47.0
   - apiVersion: v2
     appVersion: 0.46.0
-    created: "2026-07-02T12:45:38.337949859Z"
+    created: "2026-07-03T06:39:44.716013683Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -385,7 +403,7 @@ entries:
     version: 0.46.0
   - apiVersion: v2
     appVersion: 0.45.0
-    created: "2026-07-02T12:45:38.33222846Z"
+    created: "2026-07-03T06:39:44.709549608Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -403,7 +421,7 @@ entries:
     version: 0.45.0
   - apiVersion: v2
     appVersion: 0.44.0
-    created: "2026-07-02T12:45:38.32467961Z"
+    created: "2026-07-03T06:39:44.702807911Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -419,4 +437,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.44.0.tgz
     version: 0.44.0
-generated: "2026-07-02T13:24:28.182430205Z"
+generated: "2026-07-03T06:39:44.688502265Z"
