@@ -119,18 +119,6 @@ This section might supplement the Changelog file from the repository and only hi
     # Show the chart metadata for a specific chart version
     helm show chart ci360-helm-charts/sas-marketing-ai --version <CHART VERSION from the helm search>
     ```
-
-6. Use the appropriate `values-<cloud provider>.yaml` file for your cloud provider:
-
-   The `values-<cloud provider>.yaml` files are included in the release archive you extracted earlier (see [Download the Release Archive](#download-the-release-archive)). Navigate to the `tools/marketing-ai` directory and find:
-   
-   * **AWS:** `values-aws.yaml`
-   * **Azure:** `values-azure.yaml`
-
-7. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
-   in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
-
-8. Upload the modified file through the cloud console.
   
 ## Download the Release Archive
 
@@ -689,6 +677,21 @@ Gather the deployment-specific configuration values that are listed in the follo
      --from-literal=password="<user-defined-airflow-password>" \
      -n <namespace>
    ```
+
+### Update the Helm values
+
+1. Use the appropriate `values-<cloud provider>.yaml` file for your cloud provider:
+
+   The `values-<cloud provider>.yaml` files are included in the release archive you extracted earlier (see [Download the Release Archive](#download-the-release-archive)). Navigate to the `tools/marketing-ai` directory and find:
+   
+   * **AWS:** `values-aws.yaml`
+   * **Azure:** `values-azure.yaml`
+
+2. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
+   in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
+
+3. Upload the modified file through the cloud console.
+
 
 ### Install Service monitor CRDs
 
