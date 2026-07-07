@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS contactresponse;
+
 CREATE TABLE IF NOT EXISTS contactresponse.contact_history_attributes
 (
     contact_history_attributes_sk character varying(36) COLLATE pg_catalog."default" NOT NULL,
@@ -7,7 +9,7 @@ CREATE TABLE IF NOT EXISTS contactresponse.contact_history_attributes
     creation_dttm timestamp without time zone,
     modified_dttm timestamp without time zone,
     CONSTRAINT contact_history_attributes_pkey PRIMARY KEY (contact_history_attributes_sk)
-)
+);
 
 CREATE INDEX IF NOT EXISTS cha_decision_contact_history_sk
     ON contactresponse.contact_history_attributes USING btree
@@ -33,7 +35,7 @@ CREATE TABLE IF NOT EXISTS contactresponse.decision_contact_history
     identity_value character varying(500) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
     identity_type character varying(36) COLLATE pg_catalog."default" NOT NULL DEFAULT ''::character varying,
     CONSTRAINT decision_contact_history_pkey PRIMARY KEY (decision_contact_history_sk)
-)
+);
 
 CREATE INDEX IF NOT EXISTS dch_action_code
     ON contactresponse.decision_contact_history USING btree
@@ -74,7 +76,7 @@ CREATE TABLE IF NOT EXISTS contactresponse.presented_contact_history
     creation_dttm timestamp without time zone,
     modified_dttm timestamp without time zone,
     CONSTRAINT presented_contact_history_pkey PRIMARY KEY (presented_contact_history_sk)
-)
+);
 
 CREATE INDEX IF NOT EXISTS pch_decision_contact_history_sk
     ON contactresponse.presented_contact_history USING btree
@@ -98,7 +100,7 @@ CREATE TABLE IF NOT EXISTS contactresponse.response_history
     action_category text COLLATE pg_catalog."default",
     action_type character varying(1024) COLLATE pg_catalog."default",
     CONSTRAINT response_history_pkey PRIMARY KEY (response_history_sk)
-)
+);
 
 CREATE INDEX IF NOT EXISTS rh_response_channel
     ON contactresponse.response_history USING btree
@@ -118,4 +120,4 @@ CREATE INDEX IF NOT EXISTS rh_response_type_code
 CREATE INDEX IF NOT EXISTS rh_response_type_txt
     ON contactresponse.response_history USING btree
     (response_type_txt COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;	
+    TABLESPACE pg_default;
