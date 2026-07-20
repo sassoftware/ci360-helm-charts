@@ -440,8 +440,26 @@ entries:
     version: 0.34.0
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.52.0
+    created: "2026-07-20T13:11:16.739939946Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.52.0
+    - condition: postgresql-ha.enabled
+      name: postgresql-ha
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 16.3.2
+    description: A Helm chart for native components of CI360 Marketing Decisioning
+    digest: 27f2117680f001456a6b10d1577dbf19b9a62a92942bce3a13342db1f1d140fd
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.52.0.tgz
+    version: 0.52.0
+  - apiVersion: v2
     appVersion: 0.50.0
-    created: "2026-07-06T10:42:00.173095503Z"
+    created: "2026-07-20T13:11:16.732333914Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -459,7 +477,7 @@ entries:
     version: 0.50.0
   - apiVersion: v2
     appVersion: 0.49.0
-    created: "2026-07-06T10:42:00.16556377Z"
+    created: "2026-07-20T13:11:16.725222478Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -477,7 +495,7 @@ entries:
     version: 0.49.0
   - apiVersion: v2
     appVersion: 0.48.0
-    created: "2026-07-06T10:42:00.158435519Z"
+    created: "2026-07-20T13:11:16.718561031Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -495,7 +513,7 @@ entries:
     version: 0.48.0
   - apiVersion: v2
     appVersion: 0.47.0
-    created: "2026-07-06T10:42:00.15181086Z"
+    created: "2026-07-20T13:11:16.712304757Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -513,7 +531,7 @@ entries:
     version: 0.47.0
   - apiVersion: v2
     appVersion: 0.46.0
-    created: "2026-07-06T10:42:00.14547754Z"
+    created: "2026-07-20T13:11:16.705015872Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -531,7 +549,7 @@ entries:
     version: 0.46.0
   - apiVersion: v2
     appVersion: 0.45.0
-    created: "2026-07-06T10:42:00.138080679Z"
+    created: "2026-07-20T13:11:16.698086734Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -549,7 +567,7 @@ entries:
     version: 0.45.0
   - apiVersion: v2
     appVersion: 0.44.0
-    created: "2026-07-06T10:42:00.130747835Z"
+    created: "2026-07-20T13:11:16.691989176Z"
     dependencies:
     - name: subjectcontact
       repository: file://./subjectcontact
@@ -565,4 +583,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.44.0.tgz
     version: 0.44.0
-generated: "2026-07-09T06:45:36.523531049Z"
+generated: "2026-07-20T13:11:16.672687125Z"
