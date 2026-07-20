@@ -1,0 +1,375 @@
+global:
+  storagePrefix: gs
+  storageBucket: "ci360-mai-la-data"  # change this when repeating the installation
+  initContainerImage: "418062132543.dkr.ecr.us-east-1.amazonaws.com/ci360-cldeng-image-manager/shared-images-demo"
+# Airflow settings
+airflow:
+  extraPipPackages:
+    - "apache-airflow[otel]"
+  env:
+    - name: OTEL_SERVICE_NAME
+      value: "airflow_logs"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://local-agent-otel:4318/v1/logs"
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: "http/protobuf"
+    - name: OTEL_LOGS_EXPORTER
+      value: "otlp"
+    - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+      value: "true"
+    - name: OTEL_PYTHON_LOG_CORRELATION
+      value: "true"
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "service.name=airflow,service.version=2.0,deployment.environment=dev"
+    - name: AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT
+      value: "google-cloud-platform://?extra__google_cloud_platform__project=sas-01000a9f-3ce7-4a34-91bb-f6&extra__google_cloud_platform__keyfile_dict={}"
+
+  config:
+    webserver:
+      expose_config: true
+      max_conf_size: 1048576
+    core:
+      dags_folder: /mai/dags
+    logging:
+      remote_logging: true
+      remote_log_conn_id: "google_cloud_default"
+      remote_base_log_folder: "gs://ci360-mai-la-data/mai/logs"
+      logging_level: "INFO"
+      fab_logging_level: "INFO"
+    google:
+      project_id: "sas-01000a9f-3ce7-4a34-91bb-f6"  # Your GCP project ID
+      key_path: ""  # Will use Workload Identity
+      # Optional: Create Airflow connections from values.yaml
+      # connections:
+      #   - conn_id: "google_cloud_default"
+      #     conn_type: "Google Cloud"
+      #     extra: |
+      #       {
+      #         "project_id": "sas-01000a9f-3ce7-4a34-91bb-f6",
+      #         "keyfile_dict": {},
+      #         "scope": "https://www.googleapis.com/auth/devstorage.read_write"
+      #       }
+
+  images:
+    airflow:
+      repository: "418062132543.dkr.ecr.us-east-1.amazonaws.com/ci360-cldeng-image-manager/shared-images-demo"
+      tag: lic_mai.compute
+    redis:
+      repository: "418062132543.dkr.ecr.us-east-1.amazonaws.com/ci360-cldeng-image-manager/shared-images-demo"
+      tag: lic_mai.redis
+  dags:
+    persistence:
+      enabled: true
+      # existingClaim: "true"
+      existingClaim: '{{ .Release.Name }}-dags-pvc'
+    mountPath: /mai/dags
+  pgpool:
+    release: '{{ .Release.Name }}-postgres'
+  apiServer:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: "mai-local-agent@sas-01000a9f-3ce7-4a34-91bb-f6.iam.gserviceaccount.com"
+    nodeSelector:
+      cloud.google.com/gke-nodepool: aws-equivalent
+  workers:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: "mai-local-agent@sas-01000a9f-3ce7-4a34-91bb-f6.iam.gserviceaccount.com"
+    persistence:
+      storageClassName: "standard-rwo"
+    nodeSelector:
+      cloud.google.com/gke-nodepool: aws-equivalent
+    env:
+      - name: AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT
+        value: "google-cloud-platform://"
+  scheduler:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: aws-equivalent
+  triggerer:
+    persistence:
+      storageClassName: "standard-rwo"
+    nodeSelector:
+      cloud.google.com/gke-nodepool: aws-equivalent
+  redis:
+    enabled: false
+    persistence:
+      storageClassName: "standard-rwo"
+
+# Ability to override default airflow configuration for each component. This is useful for setting resource requests/limits and node selectors.
+apiServer:
+  replicas: 1
+  nodeSelector:
+    cloud.google.com/gke-nodepool: aws-equivalent
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 750m
+      memory: 1.5Gi
+
+scheduler:
+  replicas: 1
+  nodeSelector:
+    cloud.google.com/gke-nodepool: aws-equivalent
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 750m
+      memory: 1.5Gi
+
+workers:
+  replicas: 1
+  nodeSelector:
+    cloud.google.com/gke-nodepool: aws-equivalent
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 750m
+      memory: 1.5Gi
+
+triggerer:
+  replicas: 1
+  nodeSelector:
+    cloud.google.com/gke-nodepool: aws-equivalent
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 750m
+      memory: 1.5Gi
+
+# Ability to override proxy and orchestra settings
+replicaCount: 1
+maiproxy:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+maiorchestra:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+
+# redis settings
+redis:
+  replica:
+    replicaCount: 1
+  enabled: false  # Disable Redis deployment
+  auth:
+    password: "my-redis-password"
+  image:
+    registry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+    repository: ci360-cldeng-image-manager/shared-images-demo
+    tag: lic_mai.redis-ha
+  sentinel:
+    image:
+      registry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+      repository: ci360-cldeng-image-manager/shared-images-demo
+      tag: lic_mai.redis-sentinel
+  kubectl:
+    image:
+      registry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+      repository: ci360-cldeng-image-manager/shared-images-demo
+      tag: lic_mai.kubectl
+
+# postgresql-ha settings
+postgresql-ha:
+  persistence:
+    storageClass: "standard-rwo"
+  global:
+    imageRegistry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+    repository: ci360-cldeng-image-manager/shared-images-demo
+  postgresql:
+    image:
+      registry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+      repository: ci360-cldeng-image-manager/shared-images-demo
+      tag: lic_mai.repmgr
+    # Enable OTEL logging for PostgreSQL
+    extraEnvVars:
+      - name: OTEL_SERVICE_NAME
+        value: "postgresql_logs"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: "http://local-agent-otel:4318/v1/logs"
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: "http/protobuf"
+      - name: OTEL_LOGS_EXPORTER
+        value: "otlp"
+      - name: OTEL_RESOURCE_ATTRIBUTES
+        value: "service.name=postgresql,service.version=13,deployment.environment=dev,component=database"
+      # PostgreSQL logging configuration
+      - name: POSTGRES_LOG_DESTINATION
+        value: "stderr"
+      - name: POSTGRES_LOG_STATEMENT
+        value: "mod"
+      - name: POSTGRES_LOG_MIN_DURATION_STATEMENT
+        value: "1000"
+      - name: POSTGRES_LOG_CHECKPOINTS
+        value: "on"
+      - name: POSTGRES_LOG_CONNECTIONS
+        value: "on"
+      - name: POSTGRES_LOG_DISCONNECTIONS
+        value: "on"
+      - name: POSTGRES_LOG_LOCK_WAITS
+        value: "on"
+      - name: POSTGRES_LOG_LINE_PREFIX
+        value: "%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h "
+    # PostgreSQL configuration for enhanced logging
+    postgresqlConfiguration:
+      log_destination: 'stderr'
+      log_statement: 'mod'
+      log_min_duration_statement: 1000
+      log_checkpoints: 'on'
+      log_connections: 'on'
+      log_disconnections: 'on'
+      log_lock_waits: 'on'
+      log_line_prefix: '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+      logging_collector: 'off'
+    initdbScripts:
+      01-create-airflow.sql: |
+        CREATE DATABASE airflow OWNER postgres;
+  pgpool:
+    image:
+      registry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+      repository: ci360-cldeng-image-manager/shared-images-demo
+      tag: lic_mai.pgpool
+    srCheckDatabase: airflow
+  metrics:
+    image:
+      registry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+      repository: ci360-cldeng-image-manager/shared-images-demo
+      tag: lic_mai.postgres-exporter
+  volumePermissions:
+    image:
+      registry: 418062132543.dkr.ecr.us-east-1.amazonaws.com
+      repository: ci360-cldeng-image-manager/shared-images-demo
+      tag: lic_mai.os-shell
+
+# microservice  settings
+ci360-satellite:
+  image:
+    repository: "418062132543.dkr.ecr.us-east-1.amazonaws.com/ci360-cldeng-image-manager/shared-images-demo"
+    tag: "lic_mai.orchestra"
+    proxy:
+      repository: "418062132543.dkr.ecr.us-east-1.amazonaws.com/ci360-cldeng-image-manager/shared-images-demo"
+      tag: "lic_mai.proxy"
+
+
+  dags:
+    persistence:
+      storageClassName: "standard-rwx"
+      enabled: true
+      existingClaim: '{{ .Release.Name }}-dags-pvc'
+      size: 100Gi
+
+  maiorchestra:
+    replicaCount: 1
+    autoscaling:
+      enabled: false
+
+  maiproxy:
+    replicaCount: 1
+    autoscaling:
+      enabled: false
+    environment:
+      # NOTE: MAI_INTERNAL_STORAGE_PREFIX/BUCKET are set from global.storagePrefix/storageBucket
+      # in the deployment template. Do not duplicate them here.
+      # WebSocket connection settings
+      CI360_FLEETS_GW_HOST: ""                       # Fleets gateway host (empty = use direct connection)
+      MAI_WS_SERVER_HOST: "ci360-mai-comm-gateway.master-eks.cidev.sas.us"   # K8s service name for comm-gateway
+  serviceAccount:
+    annotations:
+      iam.gke.io/gcp-service-account: "mai-local-agent@sas-01000a9f-3ce7-4a34-91bb-f6.iam.gserviceaccount.com"
+
+# nodeSelector: {}  # Remove the karpenter.sh/capacity-type requirement
+# maiorchestra:
+#   nodeSelector: {}  # Remove the karpenter.sh/capacity-type requirement
+
+# maiorchestra:
+#   nodeSelector: {}  # Remove the karpenter.sh/capacity-type requirement
+
+postgresql:
+  postgresPassword: ""
+
+# pgpool:
+#   release: 'ci360-analytic-mai'
+# to switch to mai license, we need 129-132 to a tenant present on demo. Images to push to demo from dev with *mai* naming convention.
+
+registry:
+  url: "418062132543.dkr.ecr.us-east-1.amazonaws.com"
+
+otel:
+  mode: deployment
+  replicaCount: 1
+  service:
+    type: ClusterIP
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 13133
+    initialDelaySeconds: 20
+    periodSeconds: 20
+    failureThreshold: 5
+  serviceAccount:
+    create: false
+    name: otel-sa
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: 0.136.0
+    pullPolicy: IfNotPresent
+
+  config:
+    receivers:
+      # OTLP receiver for FastAPI orchestrator (logs, metrics, traces)
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    # Prometheus receiver for scraping Airflow, Postgres, and Orchestrator metrics
+
+    processors:
+      resourcedetection:
+        detectors: [system]
+      # resource/add-airflow-service:
+      #   attributes:
+      #     - key: service.name
+      #       value: Airflow
+      #       action: upsert
+      batch:
+        timeout: 10s
+      memory_limiter:
+        check_interval: 5s
+        limit_mib: 4096
+        spike_limit_mib: 512
+
+    service:
+      telemetry:
+        logs:
+          level: debug
+      pipelines:
+        # Logs pipeline: OTLP + filelog → Datadog
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
+        # Metrics pipeline: OTLP + Prometheus → Datadog
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
+        # Traces pipeline: OTLP → Datadog
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
+
+helmtestjob:
+  image:
+    repository: "418062132543.dkr.ecr.us-east-1.amazonaws.com/ci360-cldeng-image-manager/shared-images-demo"
+    tag: "lic_mai.mai-helm-tests"

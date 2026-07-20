@@ -1,0 +1,132 @@
+# =======================
+# AWS-specific overrides
+# =======================
+# ECR image configuration for AWS
+_storageClassName: &storageClassName "gp2"
+_dagsStorageClassName: &dagsStorageClassName "efs-sc"
+_ecrJobImage: &ecrJobImage "python:3.9-alpine"
+_externalGatewayHost: &externalGatewayHost "<external gateway host>"
+_k8sAuthSecretName: &k8s_auth_secret_name "<k8s auth secret name>"
+_airflowAuthSecretName: &airflowAuthSecretName "<airflow auth secret name>"
+_serviceRole: &serviceRole "arn:aws:iam::952478859445:role/sanasa-local-agent"serviceRole "arn:aws:iam::<account-id>:role/<role-name>"
+_s3BucketName: &s3BucketName "<s3 bucket name>"
+_remoteBaseLogFolder: &remoteBaseLogFolder "s3://ci-360-data-dev-us-east-1/mai/logs/ci360-master-us-east-1"remoteBaseLogFolder "s3://<bucket>/<path>"
+
+# =========================
+# =========================
+
+global:
+  ExternalGatewayHost: *externalGatewayHost
+  storagePrefix: s3
+  k8s_auth_secret_name: *k8s_auth_secret_name
+  ecr_job_image: *ecrJobImage
+  storageBucket: *s3BucketName
+  # Fleets connection settings - automatically passed to all subcharts
+  fleets:
+    # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
+    mode: "gateway"
+    # Fleets gateway hostname (used when mode = "gateway")
+    hostName: ""
+    # Tenant moniker passed in WebSocket connection URL
+    tenant: "not_set"
+    # Direct host name
+    directHost: ""
+  airflowSimpleAuth:
+    secretName: *airflowAuthSecretName
+
+airflow:
+  extraPipPackages:
+    - "apache-airflow[otel]"
+  env:
+    - name: AIRFLOW_CONN_AWS_DEFAULT
+      value: "aws://"
+    - name: OTEL_SERVICE_NAME
+      value: "airflow_logs"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://local-agent-otel:4318/v1/logs"
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: "http/protobuf"
+    - name: OTEL_LOGS_EXPORTER
+      value: "otlp"
+    - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+      value: "true"
+    - name: OTEL_PYTHON_LOG_CORRELATION
+      value: "true"
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "service.name=airflow,service.version=2.0,deployment.environment=dev"
+
+  config:
+    logging:
+      remote_log_conn_id: "aws_default"
+      remote_base_log_folder: *remoteBaseLogFolder
+
+  apiServer:
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: *serviceRole
+
+  workers:
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: *serviceRole
+    persistence:
+      storageClassName: *storageClassName
+
+  triggerer:
+    persistence:
+      storageClassName: *storageClassName
+
+  redis:
+    persistence:
+      storageClassName: *storageClassName
+
+postgresql-ha:
+  persistence:
+    storageClass: *storageClassName
+
+ci360-satellite:
+  dags:
+    persistence:
+      storageClassName: *dagsStorageClassName
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: *serviceRole
+  # Adjust the nodeSelector as needed. (Avoid Spot Instances)
+  maiproxy:
+    nodeSelector:
+      karpenter.sh/capacity-type: on-demand
+    # Enable Prometheus scraping on the maiproxy pods
+    podAnnotations:
+      # Prometheus scrape annotations
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+      prometheus.io/path: "/maiproxy/metrics"
+  maiorchestra:
+    nodeSelector:
+      karpenter.sh/capacity-type: on-demand
+
+helmtestjob:
+  image:
+    tag: "lic_mai.mai-helm-tests"
+
+# Fleet authentication settings (only used when global.fleets.mode = "gateway")
+# For customer installations: pre-create a K8s secret and reference it via existingSecret
+# For CI/CD: pass credentials via --set from pipeline secrets
+#
+# NOTE: Auth jobs are automatically created when mode = "gateway" and skipped when mode = "direct"
+#       Connection settings (mode, hostName, directHost, tenant) are in global.fleets above
+fleets:
+  # Authentication credentials
+  # Option 1 (RECOMMENDED for production):
+  # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
+  existingSecret: *k8s_auth_secret_name
+
+  # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
+  # These are ignored if existingSecret is set
+  username: ""
+  key: ""
+  keepHook: true
+
+amaPrometheus:
+  enabled: false  # Set to true to enable the AMA-managed Prometheus scrape configuration
+  scrapeInterval: "30s"
