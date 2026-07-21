@@ -879,6 +879,62 @@ After the prerequisite steps are complete, run the validation tool to verify you
 3. After the deployment is complete, return to the *User's Guide* for SAS Customer Intelligence 360
    for more information about using SAS 360 Marketing AI.
 
+### Deploy with a Custom Fernet Key
+
+By default, a random Fernet key is generated during initial installation. However, in certain scenarios (such as restoring from a backup or migrating between environments), you may need to deploy with a specific Fernet key.
+
+#### When to Use a Custom Fernet Key
+
+- **Restoring from a backup**: To decrypt existing Airflow connections, variables, and pools from a previous deployment
+- **Migration**: When moving to a new cluster or namespace while maintaining the same encryption key
+- **Disaster recovery**: When rebuilding a deployment that had encrypted secrets
+
+#### How to Deploy with a Custom Fernet Key
+
+The Fernet key must be passed to the umbrella chart using the correct parameter path:
+
+```sh
+helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
+  --version <CHART_VERSION> \
+  --namespace <namespace> \
+  --values ./values-azure.yaml \
+  --set airflow.fernetKey="<plain-text-fernet-key>" \
+  --timeout 20m
+```
+
+**Important Notes on Fernet Key Encoding:**
+
+1. **Use the correct Helm parameter path**: `--set airflow.fernetKey=...` (not `--set fernetKey=...`)
+   - The parameter must be prefixed with `airflow.` to pass it to the airflow subchart within the umbrella chart
+   
+2. **Pass the plain text value, not base64-encoded**: 
+   - The Helm template automatically base64-encodes the value before storing it in the Kubernetes secret
+   - If you pass an already base64-encoded value, it will be double-encoded, and Airflow will not recognize the key
+   
+3. **If restoring from a backup**:
+   - The `fernet-key.txt` file in the backup is stored in **plain text** (extracted from the running Airflow pod's environment)
+   - Pass this plain text directly to Helm without any decoding
+   - Helm will handle the base64-encoding for you
+
+#### Example: Restore with Custom Fernet Key
+
+```sh
+# Extract backup (the fernet-key.txt is plain text, no decoding needed)
+tar -xzf mai-backup-local-agent-20240101-120000.tar.gz
+FERNET_KEY=$(cat mai-backup-local-agent-20240101-120000/fernet-key.txt)
+
+# Deploy with the custom Fernet key (plain text)
+helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
+  --version 0.40.0 \
+  --namespace user-deployment-namespace \
+  --values ./values-azure.yaml \
+  --values mai-backup-local-agent-20240101-120000/helm-values.yaml \
+  --set airflow.fernetKey="$FERNET_KEY" \
+  --timeout 20m
+```
+
+> **Note:** The fernet key in `fernet-key.txt` is already in plain text format. Helm will automatically base64-encode it when creating the Kubernetes secret. Do not manually base64-encode the key before passing it to Helm.
+
 <!--
 ### New CI360 customer
 Once a new tenant is onboarded, the customer will receive a welcome email with the tenant's details
@@ -928,6 +984,12 @@ A complete backup includes the following artifacts:
 | **Helm Release Values** | Current configuration for the Helm deployment | Configuration tracking, reproducible deployments | No. Applied at Helm installation time with `-f` flag |
 
 ### Backup Process
+> **Important:** Establish a regular backup schedule to ensure data protection and operational continuity. Backups should be performed:
+> - **Weekly** at minimum for production environments
+> - **Before any version upgrades** to the Local Agent
+> - **After major configuration changes** (new DAGs, connection updates, pool modifications)
+> 
+> Store backups in multiple geographic locations and test your restore procedures regularly to ensure data recovery capability in case of emergency.
 
 #### Prerequisites
 
@@ -1001,7 +1063,7 @@ A successful backup creates a `.tar.gz` archive (named like `mai-backup-<release
 mai-backup-<release name>-<timestamp>.tar.gz
 └── mai-backup-<release name>-<timestamp>/
      ├── airflow-db.sql                 # PostgreSQL dump of entire Airflow metadata database
-     ├── fernet-key.txt                 # Fernet key (SENSITIVE - keep secure)
+     ├── fernet-key.txt                 # Fernet key in PLAIN TEXT format (SENSITIVE - keep secure)
      ├── dags/                          # Complete DAGs folder contents
      ├── helm-values.yaml               # Current Helm release values snapshot
      ├── airflow-variables.json         # (Optional; skipped with --minimal)
@@ -1009,12 +1071,15 @@ mai-backup-<release name>-<timestamp>.tar.gz
      └── airflow-pools.json             # (Optional; skipped with --minimal)
 ```
 
+**Important:** The `fernet-key.txt` file contains the plain text version of your Fernet key (extracted from the running Airflow pod's environment). When restoring, pass this plain text directly to Helm using `--set airflow.fernetKey="$(cat fernet-key.txt)"`. Helm will automatically base64-encode it for the Kubernetes secret.
+
 **Tip:** Follow these best practices for data retention:
 - Store backups in multiple locations (both local and cloud storage).
 - Implement a backup rotation policy (for example, keep 7 daily, 4 weekly, 12 monthly).
 - Test restore procedures regularly.
 
 ### Restore from Backup
+The restore functionality allows you to recover your Local Agent environment when needed, such as during migration, recovery, or reinstallation scenarios. This is an optional step that customers choose to run, not a mandatory step for every upgrade.
 
 #### Important Considerations for the Restore Process
 
@@ -1066,7 +1131,7 @@ Before you perform a restore process, be aware of these considerations:
         --namespace <your-namespace> \
         --values ./values-<cloud-provider>.yaml \
         --values mai-backup-<release name>-<timestamp>/helm-values.yaml \
-        --set fernetKey="$FERNET_KEY" \
+        --set airflow.fernetKey="$FERNET_KEY" \
         --timeout 20m
       ```
 
