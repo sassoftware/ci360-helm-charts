@@ -9,6 +9,7 @@ On this page:
 * [Deploy the Local Agent](#deploy-the-local-agent)
 * [Backup and Restore](#backup-and-restore)
 * [Database Maintenance for the Local Agent](#database-maintenance-for-the-local-agent)
+* [Upgrade the Local Agent](#upgrade-the-local-agent)
 * [Contributing](#contributing)
 * [License](#license)
 * [Additional Resources](#additional-resources)
@@ -135,7 +136,7 @@ The deployment scripts are provided in a release archive that corresponds to you
    tar -xzf ci360-helm-charts-tools-marketing-ai-<CHART_VERSION>.tar.gz
    ```
 
-   > **Note:** Replace `<CHART_VERSION>` with the version of the chart you plan to deploy (e.g., `0.39.7`). For example:
+   > **Note:** Replace `<CHART_VERSION>` with the version of the chart you plan to deploy (like `0.39.7`). For example:
    > ```sh
    > curl -L -o ci360-helm-charts-tools-marketing-ai-0.39.7.tar.gz \
    >   https://github.com/sassoftware/ci360-helm-charts/archive/refs/tags/tools-marketing-ai-0.39.7.tar.gz
@@ -912,7 +913,7 @@ Organize troubleshooting information using subtopics, as appropriate.
 
 ### Overview
 
-The `local-agent` deployment includes critical data that must be preserved for operational continuity. This section describes what gets backed up, how to create backups, and how to restore from them.
+The `local-agent` deployment includes critical data that must be preserved for operational continuity. This section describes what gets backed up, how to create backups, and how to restore data from them.
 
 #### What Gets Backed Up
 
@@ -920,78 +921,85 @@ A complete backup includes the following artifacts:
 
 | Artifact | Description | Use Case | Part of Restore Script? |
 |----------|-------------|----------|----------------|
-| **Airflow Metadata Database (PostgreSQL)** | Complete database dump including all Airflow metadata, task history, logs, connections, variables, and pools | Migration, disaster recovery, environment cloning | Yes |
-| **DAGs (Directed Acyclic Graphs)** | All workflow definitions stored in the DAGs PersistentVolumeClaim | Code preservation, workflow recovery | Yes |
-| **Airflow Fernet Key** | Encryption key for Airflow secrets and sensitive connection data | Decryption of encrypted fields during restore | No. Applied at Helm installation time with --set flag |
-| **Airflow Variables, Connections & Pools** | Airflow configuration objects extracted from the metadata database | Environment-specific settings, external system integrations | Yes |
-| **Helm Release Values** | Current Helm deployment configuration | Configuration tracking, reproducible deployments | No. Applied at Helm installation time with -f flag |
+| **Airflow Metadata Database (PostgreSQL)** | Complete database dump, which includes all Airflow metadata, task history, logs, connections, variables, and pools | Migration, disaster recovery, environment cloning | Yes |
+| **DAGs (Directed Acyclic Graphs)** | All workflow definitions that are stored in the DAG's PersistentVolumeClaim | Code preservation, workflow recovery | Yes |
+| **Airflow Fernet Key** | Encryption key for Airflow secrets and sensitive connection data | Decryption of encrypted fields during restore | No. Applied at Helm installation time with `--set` flag |
+| **Airflow Variables, Connections & Pools** | Airflow configuration objects that are extracted from the metadata database | Environment-specific settings, external system integrations | Yes |
+| **Helm Release Values** | Current configuration for the Helm deployment | Configuration tracking, reproducible deployments | No. Applied at Helm installation time with `-f` flag |
 
 ### Backup Process
 
 #### Prerequisites
 
-Before running backup, ensure:
+Before running a backup, ensure that the following are true:
 - `kubectl` is configured and authenticated to your cluster
-- `helm` is installed and available in your PATH
+- `helm` is installed and available in your PATH environment variable
 - `tar` is available for archiving
 - You have read access to the relevant Kubernetes namespace
-- For cloud storage: appropriate CLI tools and authentication
+- For cloud storage: make sure that you have the appropriate CLI tools and authentication:
   - **AWS S3**: `aws` CLI, run `aws configure`
   - **Azure Blob**: `az` CLI, run `az login`
   - **Google Cloud**: `gcloud` CLI, run `gcloud auth login`
 
 #### Performing a Backup of Local Agent
 
-Use the `maila-backup.sh` script to create a backup of your Local Agent configuration and data.
+Use the `maila-backup.sh` script to create a backup of your configuration and local data for the local agent.
 
-1. Run the backup script from the release archive you extracted (see [Download the Release Archive](#download-the-release-archive)):
+Run the backup script from the release archive that you extracted (see [Download the Release Archive](#download-the-release-archive)):
 
-   ```sh
-   chmod +x maila-backup.sh
-   ./maila-backup.sh --release <your-release> --namespace <your-namespace> --output <your-dir> \
-      --storage-type <s3 | azure | gcs> --storage-path <storage-path>
-   ```
+```sh
+chmod +x maila-backup.sh
+./maila-backup.sh --release <your-release> --namespace <your-namespace> --output <your-dir> \
+  --storage-type <s3 | azure | gcs> --storage-path <storage-path>
+```
 
-   **Examples:**
+The variables in the example above are defined based on this information:
+- `<your-release>`: The release name that was installed with the `helm upgrade` command (for example, `ci360-analytic-mai`)
+- `<your-namespace>`: The namespace where the release was installed (for example, `ci360-analytic-mai`)
+- `<your-dir>`: The directory where the backup will be locally stored  (for example, `/mai/backups/`)
+  
+The backup file is created in the directory that is specified with the `--output` flag (using this format: `mai-backup-<release name>-YYYYMMDD-HHMMSS.tar.gz`).
 
-   * **S3 backup and upload** (after: `aws configure`):
+Based on the type of backup, you can use the following estimates to determine how long the backup process will take:
+- **New or light namespace** (minimal DAGs, little history): ~5 minutes, ~50 KB archive
+- **Production or main environment** (heavy DAGs, extensive task history): ~25-30 minutes, 100+ MB archive
+> **Note:** The network speed to your cloud storage significantly affects the upload time for large backups.
+
+**Examples:**
+
+   * **S3 backup and upload** (after authentication with `aws configure`):
       ```sh
       ./maila-backup.sh --release ci360-analytic-mai --namespace ci360-analytic-mai --output ./backups \
          --storage-type s3 --storage-path s3://my-bucket/backups
       ```
 
-   * **Azure backup and upload** (after: `az login`):
+   * **Azure backup and upload** (after authentication with `az login`):
       ```sh
       ./maila-backup.sh --release ci360-analytic-mai --namespace ci360-analytic-mai --output ./backups \
          --storage-type azure --storage-path mycontainer@mystorageaccount
       ```
 
-   * **Google Cloud backup and upload** (after: `gcloud auth login`):
+   * **Google Cloud backup and upload** (after authentication with `gcloud auth login`):
       ```sh
       ./maila-backup.sh --release ci360-analytic-mai --namespace ci360-analytic-mai --output ./backups \
          --storage-type gcs --storage-path gs://my-bucket/backups
       ```
 
-   **Notes:**
-   - `<your-release>`: The release name that was installed with the `helm upgrade` command (e.g., `ci360-analytic-mai`)
-   - `<your-namespace>`: The namespace where the release was installed (e.g., `ci360-analytic-mai`)
-   - `<your-dir>`: The directory where the backup will be locally stored  (e.g., `/mai/backups/`)
+**Additional Backup Options**
 
-   The backup file will be created in the directory specified with the `--output` flag with the format: `mai-backup-local-agent-YYYYMMDD-HHMMSS.tar.gz`.
+| Option | Description |
+|:-------|:------------|
+|--minimal | Backup only DAGs, database, Fernet key, and Helm values (skip Airflow Variables/Connections/Pools exports) |
+|--dry-run | Preview backup steps without executing |
+|--no-color | Disable colored output (useful for CI/CD pipelines) |
 
-   **Additional backup options:**
-   ```bash
-   --minimal         # Backup only DAGs, database, Fernet key, and Helm values (skip Airflow Variables/Connections/Pools exports)
-   --dry-run         # Preview backup steps without executing
-   --no-color        # Disable colored output (useful for CI/CD pipelines)
-   ```
+#### Backup Output Contents
 
-#### Backup Output
+A successful backup creates a `.tar.gz` archive (named like `mai-backup-<release name>-<timestamp>.tar.gz`) with these files:
 
-A successful backup creates a `.tar.gz` archive containing:
 ```
-mai-backup-local-agent-20260601-173203.tar.gz
-└── mai-backup-local-agent-20260601-173203/
+mai-backup-<release name>-<timestamp>.tar.gz
+└── mai-backup-<release name>-<timestamp>/
      ├── airflow-db.sql                 # PostgreSQL dump of entire Airflow metadata database
      ├── fernet-key.txt                 # Fernet key (SENSITIVE - keep secure)
      ├── dags/                          # Complete DAGs folder contents
@@ -1001,190 +1009,184 @@ mai-backup-local-agent-20260601-173203.tar.gz
      └── airflow-pools.json             # (Optional; skipped with --minimal)
 ```
 
-**Backup file naming:** `mai-backup-<release>-<timestamp>.tar.gz`
-
-**Retention:**
-- Store backups in multiple locations (local + cloud)
-- Implement backup rotation policy (e.g., keep 7 daily, 4 weekly, 12 monthly)
-- Test restore procedures regularly
-#### Expected Timing
-
-**Backup Duration:**
-- **New/light namespace** (minimal DAGs, little history): ~5 minutes, ~50 KB archive
-- **Production/master** (heavy DAGs, extensive task history): ~25-30 minutes, 100+ MB archive
-- **Network speed to cloud storage** significantly affects upload time for large backups
+**Tip:** Follow these best practices for data retention:
+- Store backups in multiple locations (both local and cloud storage).
+- Implement a backup rotation policy (for example, keep 7 daily, 4 weekly, 12 monthly).
+- Test restore procedures regularly.
 
 ### Restore from Backup
 
+#### Important Considerations for the Restore Process
+
+Before you perform a restore process, be aware of these considerations:
+
+* **Version compatibility:** The restore process can only be done to the same or a newer version as the backup source. Database schema migration happens
+  automatically during the restore process, but the version is migrated only to a newer release (not backwards).
+
+  **Note:** If you need to restore to an older version, consider backing up the Airflow objects (Variables, Connections, Pools) separately.
+
+* **Fernet Key mismatch:** If the Fernet key does not match during the restore process, the encrypted connections and variables will fail to decrypt.
+  Always extract and apply the Fernet key from the backup when you deploy the Helm release. This is critical for restoring sensitive data like database passwords and API tokens.
+
+* **Variables created during installation:** Some variables are created during Helm installation (for example, `partition_config`). These variables will be
+  overwritten by the database restore if they exist in the backup.
+  
+  To preserve install-time defaults while restoring specific DAGs only, use the `--skip-db` flag.
+
 #### Prerequisites for Restore
 
-1. **Helm release must be deployed first** — Restore only restores data, not infrastructure
+1. The backup archive must be accessible in the environment. You must have a local copy or download the archive from cloud storage.
+
+2. Make sure the required tools and configuration are available:
+   - `kubectl` must be configured for target cluster and namespace.
+   - `tar` command must be available.
+   - The database must be in healthy state, and the deployment should be running.
+   - The extracted backup archive must contain a `fernet-key.txt` file and optionally the `helm-values.yaml` file.
+
+3. Deploy the Helm release. The restore process restores only the data but not the infrastructure itself.
    
-   > **Important:** When deploying the Helm release for restore, you should apply the **Fernet key** from the backup to ensure encrypted connections and variables can be properly decrypted. This must be done at installation time. Also, if you have the `helm-values.yaml` from your backup, deploy with it to preserve all configuration.
+   > **Important:** When you deploy the Helm release that you are restoring data into, you should apply the Fernet key from the backup to ensure that
+     encrypted connections and variables can be properly decrypted. This must be done at installation time. Also, if you have the `helm-values.yaml` from your backup,
+     use that file during deployment to preserve all configuration.
 
-   ```bash
-   # Extract the backup archive (it contains a top-level directory)
-    tar -xzf mai-backup-local-agent-<timestamp>.tar.gz
-    FERNET_KEY=$(cat mai-backup-local-agent-<timestamp>/fernet-key.txt)
+   Enter these commands:
+
+   1. Extract the backup archive (it contains a top-level directory):
    
-   # Deploy the Helm release with the backed-up Fernet key
+      ```sh
+      tar -xzf mai-backup-<release name>-<timestamp>.tar.gz
+      FERNET_KEY=$(cat mai-backup-<release name>-<timestamp>/fernet-key.txt)
+      ```
+   
+   2. Deploy the Helm release with the backed-up Fernet key:
 
-   helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
-     --version 0.39.2 \
-     --namespace user-deployment-namespace \
-     --values ./values-azure.yaml \
-     -values mai-backup-local-agent-<timestamp>/helm-values.yaml \
-     --set fernetKey="$FERNET_KEY" \
-     --timeout 20m
-   ```
+      ```sh
+      helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
+        --version <CHART_VERSION> \
+        --namespace <your-namespace> \
+        --values ./values-<cloud-provider>.yaml \
+        --values mai-backup-<release name>-<timestamp>/helm-values.yaml \
+        --set fernetKey="$FERNET_KEY" \
+        --timeout 20m
+      ```
 
-2. **Backup archive must be accessible** — Either local copy or download from cloud storage
+      > Note: The files in the example above can be found in these locations:
+        * The `values-<cloud-provider>.yaml` file is a template file in the archive from the step [Downloaded the Release Archive](#download-the-release-archive).
+        * The `helm-values.yaml` file is located in the backup archive file.
 
-3. **Required tools:**
-   - `kubectl` configured for target cluster and namespace
-   - `tar` command available
-   - Database must be in healthy state (deployment should be running)
-   - Extracted backup archive containing `fernet-key.txt` and optionally `helm-values.yaml`
+4. Use the following command to wait until your deployment is ready:
 
-#### Performing a Restore
-
-Use the `maila-restore.sh` script to restore your Local Agent from a backup.
-
-**Complete restore workflow with Fernet key:**
-
-1. Extract the backup archive and get the Fernet key:
    ```sh
-   tar -xzf mai-backup-local-agent-<timestamp>.tar.gz
-   FERNET_KEY=$(cat mai-backup-local-agent-<timestamp>/fernet-key.txt)
+   kubectl -n <your-namespace> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
    ```
 
-2. Deploy the Helm release with Fernet key (Step 1 of restore):
-   ```sh
-   helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
-     --version 0.39.2 \
-     --namespace user-deployment-namespace \
-     --values ./values-azure.yaml \
-     --set fernetKey="$FERNET_KEY" \
-     --timeout 20m
-   ```
+#### Performing the Restore Process
 
-3. Wait for deployment to be ready:
-   ```sh
-   kubectl -n user-deployment-namespace wait --for=condition=ready pod --selector='!job-name' --timeout=600s
-   ```
+When the prerequisites are complete, use the `maila-restore.sh` script to restore your local agent from a backup. Complete these steps to
+restore data with a Fernet key:
 
-4. Run the restore script (Step 2 of restore):
+1. Run the restore script:
    ```sh
    chmod +x maila-restore.sh
-   ./maila-restore.sh --release local-agent --namespace user-deployment-namespace --backup ./mai-backup-local-agent-<timestamp>.tar.gz
+   ./maila-restore.sh --release <release name> --namespace <your-namespace> --backup ./mai-backup-<release name>-<timestamp>.tar.gz
    ```
 
-5. Verify the restoration is complete by checking pod status:
-   ```sh
-   kubectl get pods -n user-deployment-namespace
-   ```
+   > **Note:** In the example above, `./mai-backup-<release name>-<timestamp>.tar.gz` is the file that was created by the `maila-backup.sh` script.
 
-**Restore script options:**
-
-1. Run the restore script from the release archive you extracted (see [Download the Release Archive](#download-the-release-archive)):
-
-   ```sh
-   chmod +x maila-restore.sh
-   ./maila-restore.sh --release <your-release> --namespace <your-namespace> --backup <backup-file.tar.gz>
-   ```
-
-   > **Note:** The `<backup-file.tar.gz>` should be the backup archive created by `maila-backup.sh` (format: `mai-backup-local-agent-YYYYMMDD-HHMMSS.tar.gz`)
-
-2. Verify the restoration is complete by checking pod status:
-
+2. Verify that the restoration is complete by checking the pod status:
    ```sh
    kubectl get pods -n <your-namespace>
    ```
 
-#### Important Restore Considerations
-
-**Version Compatibility:**
-- Restore can only be done to the **same or newer version** as the backup source
-- Database schema migration happens automatically during restore, but only forward in version
-- If you need to restore to an older version, consider backing up the Airflow objects (Variables, Connections, Pools) separately
-
-**Fernet Key Mismatch:**
-- If the Fernet key doesn't match during restore, encrypted connections and variables will fail to decrypt
-- Always extract and apply the Fernet key from the backup when deploying the Helm release
-- This is critical for restoring sensitive data like database passwords and API tokens
-
-**Variables Created at Install Time:**
-- Some variables are created during Helm installation (e.g., `partition_config`)
-- These will be **overwritten** by the database restore if they exist in the backup
-- To preserve install-time defaults while restoring specific DAGs only, use `--skip-db` flag
-
-#### Expected Timing
-
+Use the following values to estimate how long the restore process might take:
 - **Minimal backup/restore** (DAGs + DB, <1GB): 2-5 minutes
 - **Full backup/restore** (with logs): 10-30+ minutes (depends on log size)
-- **Network speed to cloud storage** affects upload/download time
+
+> **Note:** The network speed to cloud storage affects the upload and download time.
 
 #### Restore Failure Recovery
 
-If the restore process fails or leaves the deployment in an inconsistent state, follow these steps:
+If the restore process fails or leaves the deployment in an inconsistent state, follow the steps in one of these options:
 
-**Option 1: Rollback Helm Deployment (Recommended)**
+* **Option 1: Rollback Helm Deployment (Recommended)**
 
-If the restore script encounters errors, you can roll back to the pre-restore Helm deployment:
+  If the restore script encounters errors, you can roll back to the Helm deployment from before the restore:
 
-```sh
-# List previous Helm revisions
-helm history ci360-analytic-mai -n <your-namespace>
+  1. List the previous Helm revisions:
 
-# Rollback to the last known good revision (before restore)
-helm rollback ci360-analytic-mai <revision-number> -n <your-namespace>
+     ```sh
+     helm history ci360-analytic-mai -n <your-namespace>
+     ```
 
-# Wait for pods to stabilize
-kubectl -n <your-namespace> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
-```
+  2. Rollback to the last known good revision (before the restore):
+     
+     ```sh
+     helm rollback ci360-analytic-mai <revision-number> -n <your-namespace>
+     ```
 
-**Option 2: Clean Reinstall**
+  3. Wait for the pods to stabilize:
+  
+     ```sh
+     kubectl -n <your-namespace> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
+     ```
 
-If rollback is not viable, perform a clean reinstall:
+* **Option 2: Clean Reinstall:**
 
-```sh
-# Delete the current Helm release
-helm uninstall ci360-analytic-mai -n <your-namespace>
+  If rollback is not viable, perform a clean reinstall:
+  
+  1. Delete the current Helm release
 
-# Wait for all pods to terminate
-kubectl -n <your-namespace> wait --for=delete pod --all --timeout=300s
+     ```sh
+     helm uninstall ci360-analytic-mai -n <your-namespace>
+     ```
 
-# Reinstall from scratch (without backup)
-helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
-  --version <CHART_VERSION> \
-  --namespace <your-namespace> \
-  --values ./values-<cloud-provider>.yaml \
-  --timeout 20m
-```
+  2. Wait for all pods to terminate:
 
-**Option 3: Selective Data Recovery**
+     ```sh
+     kubectl -n <your-namespace> wait --for=delete pod --all --timeout=300s
+     ```
 
-If only specific components failed, restore individual artifacts:
+  3. Reinstall from scratch (without backup):
 
-```sh
-# Extract backup manually
-tar -xzf mai-backup-local-agent-<timestamp>.tar.gz
+     ```sh
+     helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
+       --version <CHART_VERSION> \
+       --namespace <your-namespace> \
+       --values ./values-<cloud-provider>.yaml \
+       --timeout 20m
+     ```
 
-# Restore only DAGs (skip database)
-./maila-restore.sh --release <your-release> --namespace <your-namespace> \
-  --backup ./mai-backup-local-agent-<timestamp> --skip-db
+* **Option 3: Selective Data Recovery:** If only specific components failed, restore individual artifacts:
 
-# Or restore only database (skip DAGs)
-./maila-restore.sh --release <your-release> --namespace <your-namespace> \
-  --backup ./mai-backup-local-agent-<timestamp> --skip-dags
-```
+  1. Extract backup manually:
+
+     ```sh
+     tar -xzf mai-backup-<release name>-<timestamp>.tar.gz
+     ```
+
+  2. Restore only DAGs (skip database) or restore only the database (skip DAGs).
+     
+     To restore only DAGs, use this command:
+     ```sh
+     ./maila-restore.sh --release <release name> --namespace <your-namespace> \
+       --backup ./mai-backup-<release name>-<timestamp> --skip-db
+     ```
+
+     To restore only the database, use this command:
+     
+     ```sh
+     ./maila-restore.sh --release <release name> --namespace <your-namespace> \
+       --backup ./mai-backup-<release name>-<timestamp> --skip-dags
+     ```
 
 **Troubleshooting Restore Failures**
 
+If the restore process continues to fail, check these troubleshooting items:
+
 - **Check pod logs:** `kubectl logs -n <namespace> <pod-name>`
-- **Verify Fernet key:** Ensure the key from the backup matches what was set during Helm deployment
-- **Database connectivity:** Verify PostgreSQL pods are healthy and responding
-- **Storage access:** Confirm DAGs PVC is accessible and has sufficient space
+- **Verify the Fernet key:** Ensure the key from the backup matches what was set during Helm deployment.
+- **Check database connectivity:** Verify PostgreSQL pods are healthy and responding.
+- **Verify storage access:** Confirm DAGs PVC is accessible and has sufficient space.
 
 ## Database Maintenance for the Local Agent
 
@@ -1202,6 +1204,64 @@ These are the recurrence settings for this cron job:
 * **Frequency:** Monthly
 * **Day:** First Sunday of every month
 * **Timing:** 02:00 AM
+
+## Upgrade the Local Agent
+
+Here are the upgrade steps for the SAS 360 Marketing AI Local Agent deployment:
+1. Back up your current deployment (recommended)
+   For details, refer to the [Backup and Restore section](#backup-and-restore).
+   ```sh
+      #Change the permissions for backup utility.
+      chmod +x maila-backup.sh
+
+      #Backup the existing deployment
+      ./maila-backup.sh --release ci360-analytic-mai --namespace <your-namespace> \
+      --output ./backups --storage-type <s3|azure|gcs> --storage-path <storage-path>
+   ```
+2. Verify the New Chart Version
+   ```sh
+      helm repo update
+      helm search repo ci360-helm-charts/sas-marketing-ai
+   ```
+3. Update Your Helm Values
+   
+   For details about Helm values, refer to the [Update the Helm values section](#update-the-helm-values).
+
+   Update values-<aws|azure>.yaml with any new configuration requirements
+
+4. Execute the Upgrade
+   ```sh
+      helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
+      --version <NEW_VERSION> \
+      --namespace <namespace> \
+      --values ./values-<aws|azure>.yaml \
+      --timeout 20m
+   ```
+
+   >**Important:**
+      1.  Do NOT use --wait or --atomic flags - these prevent post-install jobs from running
+      2.  Ensure all prerequisites (Helm v3.18.XX or v3.19.XX, kubectl >= v1.27.0) are met
+      3.  The upgrade uses Helm's smart update mechanism—only changed resources will be updated
+      4.  For production environments, always backup before upgrading
+
+5. Wait for Pods to Be Ready
+   ```sh
+      kubectl -n <namespace> wait --for=condition=ready pod --selector='!job-name' --timeout=600s
+   ```
+
+6. Verify Deployment Success
+   
+   [Run Helm Tests and Verify Deployment](#run-helm-tests-and-verify-deployment)
+
+### Rollback if Needed
+If the upgrade fails, you can rollback to a previous revision:
+```sh
+   # View deployment history
+   helm history ci360-analytic-mai -n <namespace>
+
+   # Rollback to previous version (e.g., revision 3)
+   helm rollback ci360-analytic-mai 3 -n <namespace>
+```
 
 ## Contributing
 
