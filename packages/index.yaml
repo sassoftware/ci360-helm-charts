@@ -463,6 +463,24 @@ entries:
     version: 0.34.0
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.53.0
+    created: "2026-07-23T09:05:04.186846288Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.53.0
+    - condition: postgresql-ha.enabled
+      name: postgresql-ha
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 16.3.2
+    description: A Helm chart for native components of CI360 Marketing Decisioning
+    digest: eea694f7485c0a9c1c7f3d939ebc998c56547e91bf10aa5e3a1504b7361e0e11
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.53.0.tgz
+    version: 0.53.0
+  - apiVersion: v2
     appVersion: 0.52.0
     created: "2026-07-20T13:11:16.739939946Z"
     dependencies:
@@ -606,4 +624,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.44.0.tgz
     version: 0.44.0
-generated: "2026-07-21T15:00:14.881729613Z"
+generated: "2026-07-23T09:05:04.162498966Z"
