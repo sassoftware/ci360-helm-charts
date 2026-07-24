@@ -121,3 +121,22 @@ CREATE INDEX IF NOT EXISTS rh_response_type_txt
     ON contactresponse.response_history USING btree
     (response_type_txt COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
+
+-- CDC: Create Publication and replication slot (only when wal_level = logical)
+
+DO $publication$
+BEGIN
+    IF current_setting('wal_level') = 'logical' THEN
+        IF NOT EXISTS (
+            SELECT FROM pg_publication
+            WHERE pubname = 'contactresponse_pub'
+        ) THEN
+            CREATE PUBLICATION contactresponse_pub
+            FOR TABLE
+                contactresponse.decision_contact_history,
+                contactresponse.presented_contact_history,
+                contactresponse.response_history;
+        END IF;
+    END IF;
+END
+$publication$;
