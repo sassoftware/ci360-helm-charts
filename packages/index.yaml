@@ -2,6 +2,29 @@ apiVersion: v1
 entries:
   sas-marketing-ai:
   - apiVersion: v2
+    appVersion: 0.40.55
+    created: "2026-08-10T10:23:39.553802709Z"
+    dependencies:
+    - name: airflow
+      repository: file://../charts/airflow
+      version: 0.0.43
+    - name: postgresql-ha
+      repository: file://../charts/postgresql-ha
+      version: 0.0.43
+    - name: redis
+      repository: file://../charts/redis
+      version: 23.2.12
+    - name: ci360-satellite
+      repository: file://../charts/service
+      version: 0.0.43
+    description: A Helm chart for native components of SAS CI360 Marketing AI
+    digest: 159a2f6bbacde998b7c0ab399fc28fd4b710512fc533fa7b51b45c8008dfa6fe
+    name: sas-marketing-ai
+    type: application
+    urls:
+    - marketing-ai/sas-marketing-ai-0.40.55.tgz
+    version: 0.40.55
+  - apiVersion: v2
     appVersion: 0.40.54
     created: "2026-08-10T07:41:07.934250666Z"
     dependencies:
@@ -844,4 +867,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.44.0.tgz
     version: 0.44.0
-generated: "2026-08-10T07:41:07.907327574Z"
+generated: "2026-08-10T10:23:39.528480838Z"
