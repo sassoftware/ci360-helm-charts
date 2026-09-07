@@ -1,0 +1,183 @@
+# =========================
+# GCP-specific overrides
+# =========================
+# Only environment-specific configuration values - all ECR paths computed from ExternalGatewayHost
+_storageClassName: &storageClassName "standard-rwo"
+_dagsStorageClassName: &dagsStorageClassName "standard-rwx"
+_ecrJobImage: &ecrJobImage "python:3.9-alpine"
+_externalGatewayHost: &externalGatewayHost "<external gateway host>"
+_k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
+_airflowAuthSecretName: &airflowAuthSecretName "<secret created for deployment>"
+_projectId: &projectId "<GCP project id>"
+_gcpServiceAccount: &gcpServiceAccount "<google service account email bound via Workload Identity>"
+_nodePool: &nodePool "<GKE node pool name>"
+_gcsBucketName: &gcsBucketName "<configured bucket name>"
+_remoteBaseLogFolder: &remoteBaseLogFolder "gs://<configured bucket name>/mai/logs/<user defined name>"
+
+# =========================
+
+global:
+  ExternalGatewayHost: *externalGatewayHost
+  storagePrefix: gs
+  k8s_auth_secret_name: *k8s_auth_secret_name
+  ecr_job_image: *ecrJobImage
+  storageBucket: *gcsBucketName
+  projectId: *projectId
+  gcpServiceAccount: *gcpServiceAccount
+  # Fleets connection settings - automatically passed to all subcharts
+  fleets:
+    # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
+    mode: "gateway"
+    # Fleets gateway hostname (used when mode = "gateway")
+    hostName: ""
+    # Tenant moniker passed in WebSocket connection URL
+    tenant: "not_set"
+    # Direct host name
+    directHost: ""
+  airflowSimpleAuth:
+    secretName: *airflowAuthSecretName
+
+airflow:
+  extraPipPackages:
+    - "apache-airflow[otel]"
+  env:
+    # Workload Identity is used - no keyfile is required
+    - name: AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT
+      value: "google-cloud-platform://"
+    - name: GCP_PROJECT
+      value: *projectId
+    - name: OTEL_SERVICE_NAME
+      value: "airflow_logs"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://local-agent-otel:4318/v1/logs"
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: "http/protobuf"
+    - name: OTEL_LOGS_EXPORTER
+      value: "otlp"
+    - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+      value: "true"
+    - name: OTEL_PYTHON_LOG_CORRELATION
+      value: "true"
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "service.name=airflow,service.version=2.0,deployment.environment=dev"
+
+  airflowPoolSync:
+    enabled: false
+    pools: []
+
+  config:
+    logging:
+      remote_log_conn_id: "google_cloud_default"
+      remote_base_log_folder: *remoteBaseLogFolder
+      # optional but usually wanted so the UI can still read live task logs
+      delete_worker_pods: "False"
+
+  initContainers:
+    - name: pvc-permission-fixer
+      image: busybox
+      command: ["sh", "-c"]
+      args:
+        - |
+          echo "Fixing PVC permissions..."
+          chown -R 1000:2000 /mai 2>/dev/null || true
+          chmod -R g+w /mai 2>/dev/null || true
+          echo "Permission fix complete"
+      volumeMounts:
+        - mountPath: /mai
+          name: mai-shared-storage
+
+  extraVolumes:
+    - name: mai-shared-storage
+      persistentVolumeClaim:
+        claimName: "{{ .Release.Name }}-dags-pvc"
+
+  apiServer:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: *gcpServiceAccount
+
+  workers:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: *gcpServiceAccount
+    persistence:
+      storageClassName: *storageClassName
+
+  triggerer:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: *gcpServiceAccount
+    persistence:
+      storageClassName: *storageClassName
+
+  redis:
+    persistence:
+      storageClassName: *storageClassName
+
+  nodeSelector:
+    cloud.google.com/gke-nodepool: *nodePool
+
+postgresql-ha:
+  postgresql:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: *nodePool
+  pgpool:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: *nodePool
+  persistence:
+    storageClass: *storageClassName
+
+ci360-satellite:
+  dags:
+    persistence:
+      storageClassName: *dagsStorageClassName
+  serviceAccount:
+    annotations:
+      iam.gke.io/gcp-service-account: *gcpServiceAccount
+
+  maiproxy:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: *nodePool
+    # Enable Prometheus scraping on the maiproxy pods
+    podAnnotations:
+      # NOTE: MAI_INTERNAL_STORAGE_PREFIX/BUCKET are set from global.storagePrefix/storageBucket
+      # in the deployment template. Do not duplicate them in environment.
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+      prometheus.io/path: "/maiproxy/metrics"
+
+  maiorchestra:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: *nodePool
+
+redis:
+  auth:
+    password: "my-redis-password"  # checkov:skip=CKV_SECRET_6
+  master:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: *nodePool
+
+# Fleet authentication settings (only used when global.fleets.mode = "gateway")
+# For customer installations: pre-create a K8s secret and reference it via existingSecret
+# For CI/CD: pass credentials via --set from pipeline secrets
+#
+# NOTE: Auth jobs are automatically created when mode = "gateway" and skipped when mode = "direct"
+#       Connection settings (mode, hostName, directHost, tenant) are in global.fleets above
+fleets:
+  # Authentication credentials
+  # Option 1 (RECOMMENDED for production):
+  # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
+  existingSecret: *k8s_auth_secret_name # checkov:skip=CKV_SECRET_6
+
+  # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
+  # These are ignored if existingSecret is set
+  username: ""
+  password: ""
+  key: ""  # deprecated: use 'password' instead
+
+# Managed Prometheus scrape config
+amaPrometheus:
+  enabled: false  # Set to true to enable the managed Prometheus scrape configuration
+  scrapeInterval: "30s"
+
+

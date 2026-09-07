@@ -1,0 +1,202 @@
+# =========================
+# Azure-specific overrides, to be changed by users as needed.
+# =========================
+# Only environment-specific configuration values - all ECR paths computed from ExternalGatewayHost
+_storageClassName: &storageClassName "managed-csi"
+_dagsStorageClassName: &dagsStorageClassName "azurefile-csi"
+_ecrJobImage: &ecrJobImage "python:3.9-alpine"
+_externalGatewayHost: &externalGatewayHost "<external gateway host>"
+_k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
+_airflowAuthSecretName: &airflowAuthSecretName "<secret created for deployment>"
+_storageAccountName: &storageAccountName "<input-storage-account-name-here>"
+_storageAccountResourceId: &storageAccountResourceId "<input-storage-account-resource-id>"
+_workloadIdentityClientId: &workloadIdentityClientId "<input-client-id-here>"
+_agentpool: &agentpool "agentpool"
+_remoteBaseLogFolder: &remoteBaseLogFolder "wasb://<container>@<account>.blob.core.windows.net/<path>"
+
+# =========================
+
+global:
+  ExternalGatewayHost: *externalGatewayHost
+  workloadIdentityClientId: *workloadIdentityClientId
+  storagePrefix: azure
+  k8s_auth_secret_name: *k8s_auth_secret_name
+  ecr_job_image: *ecrJobImage
+  storageBucket: "mai"
+  storageAccountName: *storageAccountName
+  storageAccountResourceId: *storageAccountResourceId
+  # Fleets connection settings - automatically passed to all subcharts
+  fleets:
+    # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
+    mode: "gateway"
+    # Fleets gateway hostname (used when mode = "gateway")
+    hostName: ""
+    # Tenant moniker passed in WebSocket connection URL
+    tenant: "not_set"
+    # Direct host name
+    directHost: ""
+  airflowSimpleAuth:
+    secretName: *airflowAuthSecretName
+
+airflow:
+  extraEnv: |
+    - name: AIRFLOW__API__AUTH_BACKENDS
+      value: 'airflow.api.auth.backend.default'
+    - name: AIRFLOW__CORE__TEST_CONNECTION
+      value: 'Enabled'
+    - name: test_connection
+      value: 'Enabled'
+    - name: MAI_INTERNAL_STORAGE_PREFIX
+      value: "{{ .Values.global.storagePrefix }}"
+    - name: MAI_INTERNAL_STORAGE_BUCKET
+      value: "{{ .Values.global.storageBucket }}"
+    - name: AIRFLOW__CELERY__OPERATION_TIMEOUT
+      value: '20'
+    - name: AZURE_STORAGE_ACCOUNT_NAME
+      value: "{{ .Values.global.storageAccountName }}"
+    - name: AZURE_STORAGE_ACCOUNT_RESOURCE_ID
+      value: "{{ .Values.global.storageAccountResourceId }}"
+    - name: AZURE_CLIENT_ID
+      value: "{{ .Values.global.workloadIdentityClientId }}"
+    - name: AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER
+      value: "wasb-airflow-logs"
+    - name: AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID
+      value: "wasb_default"
+    - name: AIRFLOW_CONN_WASB_DEFAULT
+      value: '{"conn_type": "wasb", "host": "{{ .Values.global.storageAccountName }}.blob.core.windows.net"}'
+    # Suppress verbose HTTP request/response logging from the Azure SDK.
+    # AZURE_LOG_LEVEL sets the level on azure.* loggers at SDK import time.
+    # airflow_local_settings.py (mounted below) re-applies suppression after
+    # Airflow's logging init, which would otherwise reset these levels.
+    - name: AZURE_LOG_LEVEL
+      value: "WARNING"
+    # Suppress urllib3 connection pool and retry logs (used internally by the requests library
+    # and Azure SDK transport, emitting endpoint URLs and connection details at DEBUG level).
+    - name: PYTHONWARNINGS
+      value: "ignore"
+
+  # Built-in Airflow chart support: this is rendered into airflow_local_settings.py
+  # and loaded after Airflow logging initialization.
+  airflowLocalSettings: |
+    import logging
+    for _logger in [
+        "azure.core.pipeline.policies.http_logging_policy",
+        "azure.identity._internal.get_token_mixin",
+        "azure.storage",
+    ]:
+        logging.getLogger(_logger).setLevel(logging.WARNING)
+
+  config:
+    logging:
+      remote_logging: "True"
+      remote_base_log_folder: *remoteBaseLogFolder
+    webserver:
+      enable_proxy_fix: "True"
+
+  apiServer:
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: *workloadIdentityClientId
+
+  workers:
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: *workloadIdentityClientId
+    persistence:
+      storageClassName: *storageClassName
+
+  triggerer:
+    serviceAccount:
+      annotations:
+        azure.workload.identity/client-id: *workloadIdentityClientId
+    persistence:
+      storageClassName: *storageClassName
+
+  redis:
+    persistence:
+      storageClassName: *storageClassName
+
+  airflowPodAnnotations:
+    azure.workload.identity/use: "true"
+
+  labels:
+    app.kubernetes.io/managed-by: "Helm"
+    azure.workload.identity/use: "true"
+
+  nodeSelector:
+    agentpool: *agentpool
+
+postgresql-ha:
+  postgresql:
+    nodeSelector:
+      agentpool: *agentpool
+  pgpool:
+    nodeSelector:
+      agentpool: *agentpool
+  persistence:
+    storageClass: *storageClassName
+
+ci360-satellite:
+  podLabels:
+    azure.workload.identity/use: "true"
+
+  dags:
+    persistence:
+      storageClassName: *dagsStorageClassName
+
+  maiproxy:
+    nodeSelector:
+      agentpool: *agentpool
+    # Enable workload identity and Prometheus scraping on the maiproxy pods
+    podAnnotations:
+      azure.workload.identity/use: "true"
+      # AMA Prometheus scrape annotations
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+      prometheus.io/path: "/maiproxy/metrics"
+      # NOTE: MAI_INTERNAL_STORAGE_PREFIX/BUCKET are set from global.storagePrefix/storageBucket
+      # in the deployment template. Do not duplicate them in environment.
+
+  maiorchestra:
+    nodeSelector:
+      agentpool: *agentpool
+
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: *workloadIdentityClientId
+
+# Helm test job configuration
+helmtestjob:
+  image:
+    tag: "lic_mai.mai-helm-tests"
+
+redis:
+  auth:
+    password: "my-redis-password"  # checkov:skip=CKV_SECRET_6
+  master:
+    nodeSelector:
+      agentpool: *agentpool
+
+# Fleet authentication settings (only used when global.fleets.mode = "gateway")
+# For customer installations: pre-create a K8s secret and reference it via existingSecret
+# For CI/CD: pass credentials via --set from pipeline secrets
+#
+# NOTE: Auth jobs are automatically created when mode = "gateway" and skipped when mode = "direct"
+#       Connection settings (mode, hostName, directHost, tenant) are in global.fleets above
+fleets:
+  # Authentication credentials
+  # Option 1 (RECOMMENDED for production):
+  # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
+  existingSecret: *k8s_auth_secret_name
+
+  # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
+  # These are ignored if existingSecret is set
+  username: ""
+  password: ""
+  key: ""  # deprecated: use 'password' instead
+
+# AMA managed Prometheus scrape config
+amaPrometheus:
+  enabled: false  # Set to true to enable the AMA-managed Prometheus scrape configuration
+  scrapeInterval: "30s"
+
