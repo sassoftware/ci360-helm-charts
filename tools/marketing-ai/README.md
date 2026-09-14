@@ -663,7 +663,17 @@ Gather the deployment-specific configuration values that are listed in the follo
      -n <namespace>
    ```
 
-6. Create the secret needed for Airflow:
+6. Create the secret needed for Redis:
+
+    This secret provides the password used by the Redis server and by components that connect through the Redis broker URL.
+
+    ```sh
+    kubectl create secret generic redis-credentials \
+       --from-literal=redis-password="<user-defined-redis-password>" \
+       -n <namespace>
+    ```
+
+7. Create the secret needed for Airflow:
 
    This secret defines the primary credentials used by the Airflow UI and API.
 
