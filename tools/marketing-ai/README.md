@@ -472,7 +472,7 @@ Gather the deployment-specific configuration values that are listed in the follo
    * AWS CloudShell uses Bash by default.
    * In Azure Cloud Shell, select Bash as the default shell.
   
-2. Connect to your Kubernetes cluster. First, sign in to your cloud account (AWS or the Azure CLI).
+2. Connect to your Kubernetes cluster. First, sign in to your cloud account (AWS, Azure, or Google Cloud CLI).
    Then, complete the steps below based on your provider:
 
    * **AWS:** Complete these steps:
@@ -524,6 +524,32 @@ Gather the deployment-specific configuration values that are listed in the follo
            ```sh
            az aks get-credentials -g azure-resource-group-name -n azure-cluster-name --admin --overwrite-existing
            ```
+
+   * **Google Cloud:** Complete these steps:
+
+        1. Set the project that contains the cluster:
+
+           ```sh
+           gcloud config set project <project-id>
+           ```
+
+           For example:
+
+           ```sh
+           gcloud config set project my-gcp-project-id
+           ```
+
+        2. Get the cluster credentials:
+
+           ```sh
+           gcloud container clusters get-credentials <cluster-name> --region <region> --project <project-id>
+           ```
+
+           For example:
+
+           ```sh
+           gcloud container clusters get-credentials gcp-cluster-name --region us-central1 --project my-gcp-project-id
+           ```
  
 6. Supported tools (minimum versions):
 
@@ -533,6 +559,7 @@ Gather the deployment-specific configuration values that are listed in the follo
    | kubectl | >= v1.27.0 |
    | AWS CLI | >= 2.18.1 |
    | Azure CLI | >= 2.83.0 |
+   | GC CLI | >=2.83.0 |
 
 7. If any of the required tools are not installed or are below the minimum version, use the following steps to install them:
    
@@ -540,7 +567,7 @@ Gather the deployment-specific configuration values that are listed in the follo
 
       ```sh
       chmod +x maila-setup-prerequisites.sh
-      ./maila-setup-prerequisites.sh --cloud <aws | azure>
+      ./maila-setup-prerequisites.sh --cloud <aws | azure | gcp>
       ```
 
       To view the usage options, run this command:
@@ -617,8 +644,76 @@ Gather the deployment-specific configuration values that are listed in the follo
      --audience "api://AzureADTokenExchange"
    ```
 
+4. ### (GCP only) Bind Additional Service Accounts After Helm Deployment
 
-4. Create Kubernetes secrets for these values:
+   After deploying the Helm chart, bind the following Kubernetes service accounts to the IAM service account. Run these commands for each service account:
+
+   ```sh
+   export GSA=mai-local-agent
+   export PROJECT_ID=<project-id>
+   export NAMESPACE=<namespace>
+
+   # Airflow Components
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-airflow-api-server]"
+
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-airflow-dag-processor]"
+
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-airflow-scheduler]"
+
+   # Airflow Workers
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-airflow-worker]"
+
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-airflow-worker-high-priority]"
+
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-airflow-worker-high-memory]"
+
+   # CI360 Satellite Components
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-ci360-satellite-orchestra]"
+
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-satellite]"
+
+   gcloud iam service-accounts add-iam-policy-binding \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com \
+   --role roles/iam.workloadIdentityUser \
+   --member "serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/ci360-analytic-mai-ci360-satellite-proxy]"
+   ```
+
+   **Note:** Replace `<project-id>` and `<namespace>` with your actual GCP project ID and Kubernetes namespace. These bindings enable all deployed components to access GCP resources using Workload Identity.
+
+   **Verification:** After running these commands, verify that all bindings were created successfully:
+
+   ```sh
+   gcloud iam service-accounts get-iam-policy \
+   $GSA@$PROJECT_ID.iam.gserviceaccount.com
+   ```
+
+   The output should list all the bindings with role `roles/iam.workloadIdentityUser` for each service account member.
+
+5. Create Kubernetes secrets for these values:
    * tenant ID (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-pts-general.htm#n0nc7m71yk4zkmn1xn1k9o9eerq2" target="_blank">Add a General Access Point</a> in the Help Center)
    * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
@@ -635,7 +730,7 @@ Gather the deployment-specific configuration values that are listed in the follo
       --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
 
-5. Create the secrets needed for the PostgreSQL high-availability cluster:
+6. Create the secrets needed for the PostgreSQL high-availability cluster:
    
    This secret is used by the PostgreSQL High Availability (HA) statefulset to manage database security and replication.
 
@@ -663,7 +758,7 @@ Gather the deployment-specific configuration values that are listed in the follo
      -n <namespace>
    ```
 
-6. Create the secret needed for Redis:
+7. Create the secret needed for Redis:
 
     This secret provides the password used by the Redis server and by components that connect through the Redis broker URL.
 
@@ -673,7 +768,7 @@ Gather the deployment-specific configuration values that are listed in the follo
        -n <namespace>
     ```
 
-7. Create the secret needed for Airflow:
+8. Create the secret needed for Airflow:
 
    This secret defines the primary credentials used by the Airflow UI and API.
 
@@ -697,6 +792,7 @@ Gather the deployment-specific configuration values that are listed in the follo
    
    * **AWS:** `values-aws.yaml`
    * **Azure:** `values-azure.yaml`
+   * **GCP:** `values-gcp.yaml`
 
 2. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
    in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
@@ -739,6 +835,11 @@ After the prerequisite steps are complete, run the validation tool to verify you
    **Azure**
    ```sh
    ./maila-validate-configuration.sh --cloud azure --values ./values-azure.yaml --namespace user-deployment-namespace
+   ```
+
+   **Gcp**
+   ```sh
+   ./maila-validate-configuration.sh --cloud gcp --values ./values-gcp.yaml --namespace user-deployment-namespace
    ```
 
 
