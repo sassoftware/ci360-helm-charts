@@ -820,6 +820,24 @@ entries:
     version: 0.34.0
   sas-marketing-decisioning:
   - apiVersion: v2
+    appVersion: 0.64.0
+    created: "2026-09-25T05:48:39.911964504Z"
+    dependencies:
+    - name: subjectcontact
+      repository: file://./subjectcontact
+      version: 0.64.0
+    - condition: postgres.installOperator
+      name: cloudnative-pg
+      repository: https://cloudnative-pg.github.io/charts
+      version: 0.29.0
+    description: A Helm chart for native components of CI360 Marketing Decisioning
+    digest: 1da904c7dfc08594c5973268d36320d38f3f3efa6e9eb79326358210fc2cb024
+    name: sas-marketing-decisioning
+    type: application
+    urls:
+    - marketing-decisioning/sas-marketing-decisioning-0.64.0.tgz
+    version: 0.64.0
+  - apiVersion: v2
     appVersion: 0.62.0
     created: "2026-09-07T09:05:06.655260984Z"
     dependencies:
@@ -1083,4 +1101,4 @@ entries:
     urls:
     - https://sassoftware.github.io/ci360-helm-charts/packages/marketing-decisioning/sas-marketing-decisioning-0.44.0.tgz
     version: 0.44.0
-generated: "2026-09-21T07:35:33.294366543Z"
+generated: "2026-09-25T05:48:39.902727184Z"
