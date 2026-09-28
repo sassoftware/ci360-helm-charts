@@ -163,8 +163,7 @@ that includes a link to this repository.
 
 ### Establish an Account with a Cloud-Service Provider
 
-Set up an account with a cloud-service provider, such as Amazon Web Services (AWS) or Microsoft Azure.
-<!-- or Google Cloud Platform (GCP). -->
+Set up an account with a cloud-service provider, such as Amazon Web Services (AWS), Microsoft Azure, or Google Cloud Platform (GCP).
 
 ### Deploy a Kubernetes Cluster
 
@@ -176,6 +175,7 @@ For detailed cluster requirements, node configuration, IAM permissions, and stor
 
 - `README-aws-infrastructure.md`
 - `README-azure-infrastructure.md`
+- `README-gcp-infrastructure.md`
 
 ### Collect the Required Deployment Information
 Gather the deployment-specific configuration values that are listed in the following table for your cloud provider. Some values are obtained from your cloud environment, while others are provided by SAS. You will use these values later to populate the local agent YAML configuration file.
@@ -183,9 +183,11 @@ Gather the deployment-specific configuration values that are listed in the follo
 <table role="table" style="width: 100%;">
      <colgroup>
        <col span="1" style="width: 10%;">
-       <col span="1" style="width: 20%;">
-       <col span="1" style="width: 20%;">
-       <col span="1" style="width: 50%;">
+       <col span="1" style="width: 10%;">
+       <col span="1" style="width: 18%;">
+       <col span="1" style="width: 18%;">
+       <col span="1" style="width: 18%;">
+       <col span="1" style="width: 26%;">
      </colgroup>
  <thead style="background-color: #0766d1; font-weight: bold;">
   <tr>
@@ -193,6 +195,7 @@ Gather the deployment-specific configuration values that are listed in the follo
    <th>Required?</th>
    <th>AWS Value</th>
    <th>Azure Value</th>
+   <th>GCP Value</th>
    <th>Comments</th>
   </tr>
  </thead>
@@ -209,6 +212,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   <td>
   <p>Node pool name (for example,
   agentpool)</p>
+  </td>
+  <td>
+  <p>N/A</p>
   </td>
   <td>
   <p>In AKS, navigate to <b>Settings</b>
@@ -229,6 +235,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>Azure Storage Account name</p>
   </td>
   <td>
+  <p>N/A</p>
+  </td>
+  <td>
   <p>Name of the Azure Storage
   Account that is used by the deployment.</p>
   </td>
@@ -245,6 +254,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   </td>
   <td>
   <p>Azure Storage Account resource ID</p>
+  </td>
+  <td>
+  <p>N/A</p>
   </td>
   <td>
   <p>Full Azure resource ID of the storage
@@ -266,6 +278,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>azurefile-csi</p>
   </td>
   <td>
+  <p>standard-rwx</p>
+  </td>
+  <td>
   <p>Storage class that is used to
   share DAGs across pods.</p>
   </td>
@@ -284,6 +299,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>Customer-specific value</p>
   </td>
   <td>
+  <p>Customer-specific value</p>
+  </td>
+  <td>
   <p>In SAS Customer Intelligence
   360, navigate to <b>General Settings</b> &gt; <b>Access Points</b>.</p>
   </td>
@@ -294,6 +312,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   </td>
   <td>
   <p>Yes</p>
+  </td>
+  <td>
+  <p>Kubernetes secret name</p>
   </td>
   <td>
   <p>Kubernetes secret name</p>
@@ -321,6 +342,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>wasb://airflow-logs@.blob.core.windows.net/logs</p>
   </td>
   <td>
+  <p>gs://&lt;bucket&gt;/mai/logs</p>
+  </td>
+  <td>
   <p>Location used for Airflow log
   storage.</p>
   </td>
@@ -339,6 +363,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>N/A</p>
   </td>
   <td>
+  <p>N/A</p>
+  </td>
+  <td>
   <p>Bucket used to store DAG files.</p>
   </td>
  </tr>
@@ -351,6 +378,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   </td>
   <td>
   <p>IAM role ARN</p>
+  </td>
+  <td>
+  <p>N/A</p>
   </td>
   <td>
   <p>N/A</p>
@@ -374,6 +404,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>managed-csi</p>
   </td>
   <td>
+  <p>standard-rwo</p>
+  </td>
+  <td>
   <p>Storage class that is used for
   persistent volume claims (PVCs).</p>
   </td>
@@ -390,6 +423,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   </td>
   <td>
   <p>Managed Identity Client ID</p>
+  </td>
+  <td>
+  <p>N/A</p>
   </td>
   <td>
   <p>Azure Portal &gt; Managed
@@ -412,8 +448,91 @@ Gather the deployment-specific configuration values that are listed in the follo
   account key</p>
   </td>
   <td>
+  <p>N/A</p>
+  </td>
+  <td>
   <p>Value that is used to create the
   default Airflow Azure Blob Storage connection.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_gcpServiceAccount</p>
+  </td>
+  <td>
+  <p>GCP only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>IAM service account email (for example, <code>mai-local-agent@&lt;project-id&gt;.iam.gserviceaccount.com</code>)</p>
+  </td>
+  <td>
+  <p>IAM service account bound via Workload Identity. Sets <code>global.gcpServiceAccount</code> and the <code>iam.gke.io/gcp-service-account</code> annotation on the Airflow API server, workers, triggerer, and <code>ci360-satellite</code> service accounts. See <code>README-gcp-infrastructure.md</code>, section 3.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_projectId</p>
+  </td>
+  <td>
+  <p>GCP only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>GCP project ID</p>
+  </td>
+  <td>
+  <p>Project that contains the GKE cluster, IAM service account, and Cloud Storage bucket. Sets <code>global.projectId</code> and the <code>GCP_PROJECT</code> environment variable for Airflow.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_nodePool</p>
+  </td>
+  <td>
+  <p>GCP only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>GKE node pool name (for example, <code>mai-nodepool</code>)</p>
+  </td>
+  <td>
+  <p>Name of the dedicated node pool created for local agent workloads. Used by the <code>cloud.google.com/gke-nodepool</code> node selector across Airflow, PostgreSQL, Redis, and <code>ci360-satellite</code> components. See <code>README-gcp-infrastructure.md</code>, Cluster Guidelines.</p>
+  </td>
+ </tr>
+ <tr>
+  <td>
+  <p>_gcsBucketName</p>
+  </td>
+  <td>
+  <p>GCP only</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>N/A</p>
+  </td>
+  <td>
+  <p>Cloud Storage bucket name (for example, <code>ci360-mai-la-data</code>)</p>
+  </td>
+  <td>
+  <p>Bucket used for application data and Airflow remote logs. Sets <code>global.storageBucket</code>; must match the bucket referenced by <code>_remoteBaseLogFolder</code>. See <code>README-gcp-infrastructure.md</code>, section 2.</p>
   </td>
  </tr>
  <tr>
@@ -422,6 +541,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   </td>
   <td>
   <p>Yes</p>
+  </td>
+  <td>
+  <p>Regional endpoint</p>
   </td>
   <td>
   <p>Regional endpoint</p>
@@ -449,6 +571,9 @@ Gather the deployment-specific configuration values that are listed in the follo
   </td>
   <td>
   <p>Yes</p>
+  </td>
+  <td>
+  <p>Tenant moniker</p>
   </td>
   <td>
   <p>Tenant moniker</p>
@@ -784,6 +909,22 @@ Gather the deployment-specific configuration values that are listed in the follo
      -n <namespace>
    ```
 
+9. Create the secret needed for CNPG:
+
+   This secret defines the primary credentials used by the Cnpg Postgres.
+
+   * **username**: The admin username for logging into the Postgres, Mandatory to be kept as airflow.
+   * **password**: The password for the corresponding Cnpg Database.
+
+   Use a command like this example:
+
+   ```sh
+   kubectl create secret generic cnpg-postgres-credentials \
+     --from-literal=username="airflow" \
+     --from-literal=password="<user-defined-airflow-password>" \
+     -n <namespace>
+   ```
+
 ### Update the Helm values
 
 1. Use the appropriate `values-<cloud provider>.yaml` file for your cloud provider:
@@ -797,7 +938,21 @@ Gather the deployment-specific configuration values that are listed in the follo
 2. Edit the file with a text editor, and update the values by using the parameter names and sample values that are described
    in the section [Collect The Required Deployment Information](https://github.com/sassoftware/ci360-helm-charts/blob/main/tools/marketing-ai/README.md#collect-the-required-deployment-information)
 
-3. Upload the modified file through the cloud console.
+3. Set the PostgreSQL database values (`_postgresHA_enabled`, `_cnpg_enabled`, and `_importFrom_enabled`).
+
+   CloudNativePG (CNPG) is the default PostgreSQL database architecture. The values that you use
+   depend on whether this is a new deployment or an upgrade of an existing Bitnami PostgreSQL deployment:
+
+   * **New deployment:** Keep the default values in the file. No changes are required.
+   * **Existing deployment:** You must migrate your existing Bitnami PostgreSQL data to CNPG. For the
+     required flag values, the CNPG operator prerequisite, and the two-pass upgrade procedure, see
+     `README-cnpg-migration.md` in the release archive that you extracted earlier
+     (see [Download the Release Archive](#download-the-release-archive)).
+
+   > **Important:** If you have an existing deployment and you do not follow the migration steps, all
+   > existing recipes and projects are permanently deleted.
+
+4. Upload the modified file through the cloud console.
 
 
 ### Install Service monitor CRDs
