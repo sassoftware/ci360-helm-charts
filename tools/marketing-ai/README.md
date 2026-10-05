@@ -472,7 +472,7 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>IAM service account email (for example, <code>mai-local-agent@&lt;project-id&gt;.iam.gserviceaccount.com</code>)</p>
   </td>
   <td>
-  <p>IAM service account bound via Workload Identity. Sets <code>global.gcpServiceAccount</code> and the <code>iam.gke.io/gcp-service-account</code> annotation on the Airflow API server, workers, triggerer, and <code>ci360-satellite</code> service accounts. See <code>README-gcp-infrastructure.md</code>, section 3.</p>
+  <p>IAM service account bound through Workload Identity. Sets <code>global.gcpServiceAccount</code> and the <code>iam.gke.io/gcp-service-account</code> annotation on the Airflow API server, workers, triggerer, and <code>ci360-satellite</code> service accounts. See <code>README-gcp-infrastructure.md</code>, section 3.</p>
   </td>
  </tr>
  <tr>
@@ -532,7 +532,7 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>Cloud Storage bucket name (for example, <code>ci360-mai-la-data</code>)</p>
   </td>
   <td>
-  <p>Bucket used for application data and Airflow remote logs. Sets <code>global.storageBucket</code>; must match the bucket referenced by <code>_remoteBaseLogFolder</code>. See <code>README-gcp-infrastructure.md</code>, section 2.</p>
+  <p>Bucket that is used for application data and Airflow remote logs. Sets <code>global.storageBucket</code>. This value must match the bucket that is referenced by <code>_remoteBaseLogFolder</code>. See <code>README-gcp-infrastructure.md</code>, section 2.</p>
   </td>
  </tr>
  <tr>
