@@ -512,7 +512,7 @@ Gather the deployment-specific configuration values that are listed in the follo
   <p>GKE node pool name (for example, <code>mai-nodepool</code>)</p>
   </td>
   <td>
-  <p>Name of the dedicated node pool created for local agent workloads. Used by the <code>cloud.google.com/gke-nodepool</code> node selector across Airflow, PostgreSQL, Redis, and <code>ci360-satellite</code> components. See <code>README-gcp-infrastructure.md</code>, Cluster Guidelines.</p>
+   <p>Name of the dedicated node pool created for local agent workloads. Used by the <code>cloud.google.com/gke-nodepool</code> node selector across Airflow, PostgreSQL, Valkey, and <code>ci360-satellite</code> components. See <code>README-gcp-infrastructure.md</code>, Cluster Guidelines.</p>
   </td>
  </tr>
  <tr>
@@ -883,13 +883,13 @@ Gather the deployment-specific configuration values that are listed in the follo
      -n <namespace>
    ```
 
-7. Create the secret needed for Redis:
+7. Create the shared broker credential secret used by Valkey:
 
-    This secret provides the password used by the Redis server and by components that connect through the Redis broker URL.
+   This secret provides the password used by Valkey and components that connect through the broker URL.
 
     ```sh
     kubectl create secret generic redis-credentials \
-       --from-literal=redis-password="<user-defined-redis-password>" \
+      --from-literal=redis-password="<user-defined-valkey-password>" \
        -n <namespace>
     ```
 
@@ -1083,9 +1083,9 @@ After the prerequisite steps are complete, run the validation tool to verify you
    pod/ci360-analytic-mai-postgresql-ha-postgresql-0 condition met
    pod/ci360-analytic-mai-postgresql-ha-postgresql-1 condition met
    pod/ci360-analytic-mai-postgresql-ha-postgresql-2 condition met
-   pod/ci360-analytic-mai-redis-node-0 condition met
-   pod/ci360-analytic-mai-redis-node-1 condition met
-   pod/ci360-analytic-mai-redis-node-2 condition met
+   pod/ci360-analytic-mai-valkey-0 condition met
+   pod/ci360-analytic-mai-valkey-1 condition met
+   pod/ci360-analytic-mai-valkey-2 condition met
    ```
 
 ### Run Helm Tests and Verify Deployment
