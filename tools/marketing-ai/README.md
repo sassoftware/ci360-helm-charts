@@ -769,12 +769,12 @@ Gather the deployment-specific configuration values that are listed in the follo
      --audience "api://AzureADTokenExchange"
    ```
 
-4. ### (GCP only) Bind Additional Service Accounts After Helm Deployment
+4. ### (GCP only) Bind Additional Service Accounts
 
-   After deploying the Helm chart, bind the following Kubernetes service accounts to the IAM service account. Run these commands for each service account:
+   Bind the following Kubernetes service accounts with the IAM service account. Run these commands for each service account:
 
    ```sh
-   export GSA=mai-local-agent
+   export GSA=<GSA-name>
    export PROJECT_ID=<project-id>
    export NAMESPACE=<namespace>
 
@@ -855,31 +855,19 @@ Gather the deployment-specific configuration values that are listed in the follo
       --from-literal=datadog-api-key=<value | this is optional and ONLY to be used while using DD as observability tool>
    ```
 
-6. Create the secrets needed for the PostgreSQL high-availability cluster:
-   
-   This secret is used by the PostgreSQL High Availability (HA) statefulset to manage database security and replication.
+6. Create the secret needed for CloudNativePG (CNPG):
 
-   * **password**: This is the primary administrative password for the PostgreSQL superuser. It is required for the Airflow components to connect to and initialize the metadata database.
-   * **repmgr-password**: This is used by the Replication Manager (repmgr) utility. In an HA setup, repmgr handles the failover process and standby node registration. This password allows the nodes to communicate securely to manage cluster health.
+    This secret provides the credentials for the Airflow metadata database in CNPG.
+
+    * **username**: The database username must be `airflow`.
+    * **password**: A user-defined password for the Airflow database user. Replace the placeholder below with your chosen strong password.
 
    Use a command like this example:
 
    ```sh
-   kubectl create secret generic postgres-credentials \
-     --from-literal=password="<user-defined-postgres-password>" \
-     --from-literal=repmgr-password="<user-defined-repmgr-password>" \
-     -n <namespace> 
-   ```
-
-   This secret is used by the Pgpool-II deployment, which acts as a load balancer and connection pooler sitting in front of the PostgreSQL nodes.
-
-   * **admin-password**: This key is required for the Pgpool administration console and internal management. It allows Pgpool to perform health checks and manage the distribution of read/write queries across the database cluster.
-
-   Use a command like this example:
-   
-   ```sh
-   kubectl create secret generic pgpool-credentials \
-     --from-literal=admin-password="<user-defined-pgpool-admin-password>" \
+    kubectl create secret generic cnpg-postgres-credentials \
+       --from-literal=username="airflow" \
+       --from-literal=password="<user-defined-postgres-password>" \
      -n <namespace>
    ```
 
@@ -905,22 +893,6 @@ Gather the deployment-specific configuration values that are listed in the follo
    ```sh
    kubectl create secret generic airflow-auth-credentials \
      --from-literal=username="<user-defined-airflow-username>" \
-     --from-literal=password="<user-defined-airflow-password>" \
-     -n <namespace>
-   ```
-
-9. Create the secret needed for CNPG:
-
-   This secret defines the primary credentials used by the Cnpg Postgres.
-
-   * **username**: The admin username for logging into the Postgres, Mandatory to be kept as airflow.
-   * **password**: The password for the corresponding Cnpg Database.
-
-   Use a command like this example:
-
-   ```sh
-   kubectl create secret generic cnpg-postgres-credentials \
-     --from-literal=username="airflow" \
      --from-literal=password="<user-defined-airflow-password>" \
      -n <namespace>
    ```
