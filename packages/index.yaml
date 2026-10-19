@@ -2,31 +2,6 @@ apiVersion: v1
 entries:
   sas-marketing-ai:
   - apiVersion: v2
-    appVersion: 0.46.0
-    created: "2026-10-19T10:50:57.257063002Z"
-    dependencies:
-    - name: airflow
-      repository: file://../charts/airflow
-      version: 0.0.43
-    - alias: valkey
-      condition: valkey.enabled
-      name: valkey
-      repository: file://../charts/valkey
-      version: 0.11.0
-    - name: ci360-satellite
-      repository: file://../charts/service
-      version: 0.0.44
-    - name: cnpg-cluster
-      repository: file://../charts/cnpg-cluster
-      version: 0.0.1
-    description: A Helm chart for native components of SAS CI360 Marketing AI
-    digest: f63b60288e4758aca62c82f542cc90c198c27d881995d7f9ad8aff332c4d9e10
-    name: sas-marketing-ai
-    type: application
-    urls:
-    - marketing-ai/sas-marketing-ai-0.46.0.tgz
-    version: 0.46.0
-  - apiVersion: v2
     appVersion: 0.45.0
     created: "2026-10-12T15:13:48.916896272Z"
     dependencies:
