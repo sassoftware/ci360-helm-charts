@@ -42,18 +42,19 @@ This section might supplement the Changelog file from the repository and only hi
  1. Make sure that you are using Bash as the shell environment.
    * AWS CloudShell uses Bash by default.
    * In Azure Cloud Shell, select Bash as the default shell.
+   * GCP Cloud Shell uses Bash by default.
   
 2. Check the Helm version:
       ```sh
       helm version --short
       ```
       
-   **Important:** Helm v3.18.XX or v3.19.XX is required for this deployment. Verify that the output starts with v3.18. or v3.19. (for example, v3.18.1+gXXXXXXX).
+   **Important:** This deployment requires a stable Helm v4.x release. Helm v3.x and prerelease versions are not supported. 
    
-3. If Helm is not installed, use the following commands to install the correct version
+3. If Helm is not installed, use the following commands to install v4.0.5:
    
       ```sh
-      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
       ```
       
       ```sh
@@ -61,18 +62,18 @@ This section might supplement the Changelog file from the repository and only hi
       ```
       
       ```sh
-      DESIRED_VERSION=v3.18.1 ./get_helm.sh
+      DESIRED_VERSION=v4.0.5 ./get_helm.sh
       ```
-4. If Helm is installed and the version is not at version 3.18 or 3.19, use the following command to install and update Helm to the correct version:
+4. If Helm is installed but is not a stable v4.x release, or you need v4.0.5 for verification, install it in a user-writable directory. This overrides the preinstalled CloudShell binary without modifying it. The following example is for Linux amd64; use `linux-arm64` on ARM64 hosts:
    
       ```sh
       mkdir -p $HOME/.local/bin && \
       export PATH="$HOME/.local/bin:$PATH" && \
       echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
-      wget https://get.helm.sh/helm-v3.18.0-linux-amd64.tar.gz && \
-      tar -zxvf helm-v3.18.0-linux-amd64.tar.gz && \
+      curl -fsSLO https://get.helm.sh/helm-v4.0.5-linux-amd64.tar.gz && \
+      tar -zxvf helm-v4.0.5-linux-amd64.tar.gz && \
       mv linux-amd64/helm $HOME/.local/bin/helm && \
-      rm -rf linux-amd64 helm-v3.18.0-linux-amd64.tar.gz
+      rm -rf linux-amd64 helm-v4.0.5-linux-amd64.tar.gz
       ```
    
       ```sh
@@ -680,7 +681,7 @@ Gather the deployment-specific configuration values that are listed in the follo
 
    | Tool | Minimum Version |
    |------|-----------------|
-   | Helm | = 3.18.XX or 3.19.XX |
+   | Helm | Stable v4.x (v4.0.5 cross-cloud verification baseline) |
    | kubectl | >= v1.27.0 |
    | AWS CLI | >= 2.18.1 |
    | Azure CLI | >= 2.83.0 |
@@ -976,8 +977,7 @@ After the prerequisite steps are complete, run the validation tool to verify you
 
 1. Deploy the local agent through Helm.
 
-   > **Note:** Do not use the `--wait` or `--atomic` options with this chart. These options can prevent the post‑install Jobs from
-     running, which are required to complete the deployment.
+   > **Note:** Omit `--wait` to retain Helm v4's default hook-only waiting behavior. Do not pass `--wait=hookOnly`: Helm v4.0.5 does not accept that value explicitly. Post-install Jobs are required to complete deployment, so do not use bare `--wait`, `--wait=watcher`, `--wait=legacy`, or `--rollback-on-failure` (the Helm v4 replacement for `--atomic`), because waiting for workloads before these Jobs can prevent deployment from completing.
 
    ```sh
    helm upgrade --install ci360-analytic-mai ci360-helm-charts/sas-marketing-ai \
@@ -1542,8 +1542,8 @@ Here are the upgrade steps for the SAS 360 Marketing AI Local Agent deployment:
    ```
 
    >**Important:**
-      1.  Do NOT use --wait or --atomic flags - these prevent post-install jobs from running
-      2.  Ensure all prerequisites (Helm v3.18.XX or v3.19.XX, kubectl >= v1.27.0) are met
+      1.  Omit `--wait` and `--rollback-on-failure` so post-install Jobs can run (Helm v4 replaces `--atomic` with `--rollback-on-failure`)
+      2.  Ensure all prerequisites (stable Helm v4.x, kubectl >= v1.27.0) are met
       3.  The upgrade uses Helm's smart update mechanism—only changed resources will be updated
       4.  For production environments, always backup before upgrading
 
