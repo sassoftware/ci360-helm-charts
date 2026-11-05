@@ -1,0 +1,214 @@
+# =========================
+# GCP-specific overrides
+# =========================
+# Only environment-specific configuration values - all ECR paths computed from ExternalGatewayHost
+_storageClassName: &storageClassName "standard-rwo"
+_dagsStorageClassName: &dagsStorageClassName "standard-rwx"
+_ecrJobImage: &ecrJobImage "python:3.9-alpine"
+_externalGatewayHost: &externalGatewayHost "<external gateway host>"
+_k8sAuthSecretName: &k8s_auth_secret_name "<secret created for deployment>"
+_airflowAuthSecretName: &airflowAuthSecretName "<secret created for deployment>"
+_projectId: &projectId "<GCP project id>"
+_gcpServiceAccount: &gcpServiceAccount "<google service account email bound via Workload Identity>"
+_nodePool: &nodePool "<GKE node pool name>"
+_gcsBucketName: &gcsBucketName "<configured bucket name>"
+_remoteBaseLogFolder: &remoteBaseLogFolder "gs://<configured bucket name>/mai/logs/<user defined name>"
+# =========================
+
+global:
+  # Marker used by chart templates (e.g. mai-onboarding-job init container) to
+  # apply GCP-specific behavior. Must be "gcp" for the Filestore permission
+  # fix-up initContainer to render.
+  cloudProvider: gcp
+  ExternalGatewayHost: *externalGatewayHost
+  storagePrefix: gs
+  k8s_auth_secret_name: *k8s_auth_secret_name
+  ecr_job_image: *ecrJobImage
+  storageBucket: *gcsBucketName
+  projectId: *projectId
+  gcpServiceAccount: *gcpServiceAccount
+  # Fleets connection settings - automatically passed to all subcharts
+  fleets:
+    # Connection mode: "gateway" (uses fleets proxy) or "direct" (direct to comm-gateway)
+    mode: "gateway"
+    # Fleets gateway hostname (used when mode = "gateway")
+    hostName: ""
+    # Tenant moniker passed in WebSocket connection URL
+    tenant: "not_set"
+    # Direct host name
+    directHost: ""
+  airflowSimpleAuth:
+    secretName: *airflowAuthSecretName
+
+airflow:
+  extraPipPackages:
+    - "apache-airflow[otel]"
+  env:
+    # Workload Identity is used - no keyfile is required
+    - name: AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT
+      value: "google-cloud-platform://"
+    - name: GCP_PROJECT
+      value: *projectId
+    - name: OTEL_SERVICE_NAME
+      value: "airflow_logs"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://local-agent-otel:4318/v1/logs"
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: "http/protobuf"
+    - name: OTEL_LOGS_EXPORTER
+      value: "otlp"
+    - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
+      value: "true"
+    - name: OTEL_PYTHON_LOG_CORRELATION
+      value: "true"
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "service.name=airflow,service.version=2.0,deployment.environment=dev"
+
+  airflowPoolSync:
+    enabled: false
+    pools: []
+
+  config:
+    logging:
+      remote_logging: "True"
+      remote_log_conn_id: "google_cloud_default"
+      remote_base_log_folder: *remoteBaseLogFolder
+      # optional but usually wanted so the UI can still read live task logs
+      delete_worker_pods: "False"
+
+  extraVolumes:
+    - name: mai-shared-storage
+      persistentVolumeClaim:
+        claimName: "{{ .Release.Name }}-dags-pvc"
+
+  apiServer:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: *gcpServiceAccount
+    # uid 50000 (airflow) must be a member of gid 2000 to write to the shared
+    # DAGs PVC. Files created by satellite (gid 2000) and by the onboarding
+    # job (root, but inheriting via setgid) all end up gid 2000.
+    # NOTE: apiServer schema only exposes `securityContexts.pod` (not `securityContext`).
+    securityContexts:
+      pod:
+        supplementalGroups: [2000]
+
+  workers:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: *gcpServiceAccount
+    persistence:
+      storageClassName: *storageClassName
+    securityContext:
+      supplementalGroups: [2000]
+
+  triggerer:
+    serviceAccount:
+      annotations:
+        iam.gke.io/gcp-service-account: *gcpServiceAccount
+    persistence:
+      storageClassName: *storageClassName
+    securityContext:
+      supplementalGroups: [2000]
+
+  redis:
+    persistence:
+      storageClassName: *storageClassName
+
+  nodeSelector:
+    cloud.google.com/gke-nodepool: *nodePool
+
+  scheduler:
+    securityContext:
+      supplementalGroups: [2000]
+    extraInitContainers:
+      - name: pvc-permission-fixer
+        # Pinned tag: `latest` floats and could pull an ash build without
+        # pipefail, silently regressing the fail-loudly guarantee below.
+        image: busybox:1.36
+        securityContext:
+          runAsUser: 0
+        command: ["sh", "-c"]
+        args:
+          - |
+            # pipefail is needed so the `find | xargs` below fails the script
+            # if either side errors (set -e alone only sees the last stage).
+            set -eo pipefail
+            echo "Fixing PVC group ownership (gid 2000) and setgid bit..."
+            # Group-based sharing across writers:
+            #   - satellite runs as uid 1000, gid 2000
+            #   - airflow runs as uid 50000, gid 0 (+ supplementalGroups 2000)
+            #   - mai-onboarding-job runs as root
+            # Setgid on directories makes every NEW file/dir inherit gid 2000
+            # regardless of which pod created it.
+            # NOTE: `set -e` above intentionally lets this init fail loudly if
+            # Filestore rejects any op, so the scheduler doesn't start on an
+            # uncorrected PVC.
+            chgrp -R 2000 /mai
+            chmod -R g+rwX /mai
+            # Use xargs -0 (not `find -exec`) so a failing chmod propagates:
+            # find returns 0 even when its -exec child fails, defeating `set -e`.
+            find /mai -type d -print0 | xargs -0 chmod g+s
+            echo "Permission fix complete"
+        volumeMounts:
+          - mountPath: /mai
+            name: mai-shared-storage
+    extraVolumes:
+      - name: mai-shared-storage
+        persistentVolumeClaim:
+          claimName: "{{ .Release.Name }}-dags-pvc"
+
+ci360-satellite:
+  dags:
+    persistence:
+      storageClassName: *dagsStorageClassName
+  serviceAccount:
+    annotations:
+      iam.gke.io/gcp-service-account: *gcpServiceAccount
+
+  maiproxy:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: *nodePool
+    # Enable Prometheus scraping on the maiproxy pods
+    podAnnotations:
+      # NOTE: MAI_INTERNAL_STORAGE_PREFIX/BUCKET are set from global.storagePrefix/storageBucket
+      # in the deployment template. Do not duplicate them in environment.
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+      prometheus.io/path: "/maiproxy/metrics"
+
+  maiorchestra:
+    nodeSelector:
+      cloud.google.com/gke-nodepool: *nodePool
+
+valkey:
+  nodeSelector:
+    cloud.google.com/gke-nodepool: *nodePool
+
+# Fleet authentication settings (only used when global.fleets.mode = "gateway")
+# For customer installations: pre-create a K8s secret and reference it via existingSecret
+# For CI/CD: pass credentials via --set from pipeline secrets
+#
+# NOTE: Auth jobs are automatically created when mode = "gateway" and skipped when mode = "direct"
+#       Connection settings (mode, hostName, directHost, tenant) are in global.fleets above
+fleets:
+  # Authentication credentials
+  # Option 1 (RECOMMENDED for production):
+  # Then set existingSecret to the secret name: {{ .Values.global.k8s_auth_secret_name }}
+  existingSecret: *k8s_auth_secret_name # checkov:skip=CKV_SECRET_6
+
+  # Option 2 (for CI/CD): Inline values - pass via --set from pipeline secrets
+  # These are ignored if existingSecret is set
+  username: ""
+  password: ""
+  key: ""  # deprecated: use 'password' instead
+
+# Managed Prometheus scrape config
+amaPrometheus:
+  enabled: false  # Set to true to enable the managed Prometheus scrape configuration
+  scrapeInterval: "30s"
+
+cnpg-cluster:
+  storage:
+    storageClass: *storageClassName
+
