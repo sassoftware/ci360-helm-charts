@@ -719,10 +719,16 @@ Gather the deployment-specific configuration values that are listed in the follo
    kubectl create namespace user-deployment-namespace
    ```
 
-2. Tag the namespace (as a best practice):
+2. Tag the namespace (required):
 
    ```sh
-   kubectl label namespace <namespace> name=<namespace> --overwrite
+   kubectl label namespace <your-namespace> name=<your-namespace> --overwrite
+   ```
+   **Note:** Replace both placeholders with the namespace name from Step 1; the label value must match it exactly.
+   For example:
+
+   ```sh
+   kubectl label namespace user-deployment-namespace name=user-deployment-namespace --overwrite
    ```
 
 3. (Azure only) Add your namespace to the Managed Identity definition.
@@ -734,7 +740,7 @@ Gather the deployment-specific configuration values that are listed in the follo
 
    | Placeholder | Description |
    |:------------|:------------|
-   | < your-namespace > | the namespace you created in step 2 |
+   | < your-namespace > | the namespace you created in step 1 |
    | < azure resource group name > | the resource group that contains the Managed Identity |
    | "--issuer" | use the issuer for your AKS cluster (the region and IDs will differ) |
 
@@ -844,6 +850,14 @@ Gather the deployment-specific configuration values that are listed in the follo
    * API username, password, and secret (see <a href="https://documentation.sas.com/?cdcId=cintcdc&cdcVersion=production.a&docsetId=cintag&docsetTarget=ext-access-config-apicred.htm" target="_blank">Create an API User</a> in the Help Center)
 
      >**Important**: Make sure that the API user follows this naming convention: `API-<tenant_moniker>-mai-<user_id>`. The local agent cannot connect if the value "mai" is not in the name.
+
+   The chart keeps `DEPLOYMENT_ID` as the Helm release and namespace label. It
+   also creates an `INSTALLATION_ID` Secret on first install and reuses it on
+   upgrades. The Proxy replicas share this ID so the Communication Gateway can
+   recognize them as one installation. A full uninstall removes the Secret; a
+   later install then generates a new ID. Older agents may omit this optional
+   parameter during rollout and continue to connect, but those connections are
+   not covered by the single-installation guard until the agents are upgraded.
 
    Use a command like this example:
 
@@ -1592,3 +1606,4 @@ This project is licensed under the Apache 2.0 License.
 * <a href="https://helm.sh/docs/" target="_blank">Helm Documentation</a>
 * <a href="https://kubernetes.io/docs/" target="_blank">Kubernetes Documentation</a>
 * <a href="https://airflow.apache.org/docs/" target="_blank">Airflow Documentation</a>
+
